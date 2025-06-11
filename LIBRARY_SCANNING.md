@@ -15,36 +15,45 @@ When a song is downloaded and needs to be added to a playlist, the application:
 ## Key Improvements
 
 ### Targeted Scanning
+
 - **Before**: Used `/Library/Refresh` which scans ALL libraries (music, movies, TV shows, etc.)
 - **After**: Uses `/Items/{musicLibraryId}/Refresh` which only scans the music library
 
 ### Real-time Progress Tracking
+
 - **Before**: Fixed 30-second wait regardless of actual scan progress
 - **After**: Monitors actual task progress and completes as soon as the scan finishes
 
 ### Better Logging
+
 - **Before**: Minimal logging with basic messages
 - **After**: Detailed progress logging with emojis and status updates
 
 ## API Methods
 
 ### `getMusicLibraryId()`
+
 Finds the ID of the music library collection folder.
 
 ### `triggerMusicLibraryScan()`
+
 Triggers a scan of only the music library, returning the library ID if successful.
 
 ### `waitForLibraryScanCompletion(maxWaitTimeMs, pollIntervalMs)`
+
 Monitors active tasks and waits for library scan tasks to complete:
+
 - Polls every `pollIntervalMs` (default: 2 seconds)
 - Times out after `maxWaitTimeMs` (default: 2 minutes)
 - Logs progress updates every 10 seconds to avoid spam
 - Returns `true` when scan completes, `false` on timeout
 
 ### `getActiveTasks()`
+
 Retrieves all currently active scheduled tasks from Jellyfin.
 
 ### `findSongInLibrary(title, artist)`
+
 Efficiently searches for a specific song in the library after scanning.
 
 ## Configuration
@@ -54,7 +63,7 @@ The scan monitoring can be configured in the download API:
 ```javascript
 const scanCompleted = await jellyfinClient.waitForLibraryScanCompletion(
   120000, // 2 minutes max wait time
-  3000    // Check every 3 seconds
+  3000, // Check every 3 seconds
 );
 ```
 
