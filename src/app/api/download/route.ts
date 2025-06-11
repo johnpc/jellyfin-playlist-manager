@@ -83,38 +83,40 @@ export async function POST(request: NextRequest) {
         const isAuthenticated = await jellyfinClient.isAuthenticated();
         console.log({ isAuthenticated });
 
-        scanTriggered = await jellyfinClient.triggerLibraryScan();
-        console.log("Library scan triggered successfully");
+        const musicLibraryId = await jellyfinClient.triggerMusicLibraryScan();
+        scanTriggered = musicLibraryId !== null;
+        
+        if (scanTriggered) {
+          console.log("🎵 Music library scan triggered successfully");
+        } else {
+          console.log("❌ Failed to trigger music library scan");
+        }
 
         // If we have a playlist ID, wait for the scan to complete and add the song
         if (playlistId && scanTriggered) {
-          console.log(`Waiting 30 seconds for library scan to complete...`);
-          await new Promise((resolve) => setTimeout(resolve, 30000)); // Wait 30 seconds
+          console.log("⏳ Waiting for music library scan to complete...");
+          const scanCompleted = await jellyfinClient.waitForLibraryScanCompletion(
+            120000, // 2 minutes max
+            3000    // Check every 3 seconds
+          );
+          
+          if (!scanCompleted) {
+            console.log("⚠️  Library scan did not complete within timeout, proceeding anyway...");
+          } else {
+            console.log("✅ Library scan completed successfully");
+          }
 
           try {
             console.log(
-              `Searching for "${title}" by "${artist}" in library...`,
+              `🔍 Searching for "${title}" by "${artist}" in library...`,
             );
 
-            // Search for the song in the library
-            const searchResults = await jellyfinClient.searchItems(
-              `${title} ${artist}`,
-            );
+            // Search for the song in the library using the new method
+            const songToAdd = await jellyfinClient.findSongInLibrary(title, artist);
 
-            if (searchResults && searchResults.length > 0) {
-              // Find the best match (exact title and artist match preferred)
-              const exactMatch = searchResults.find(
-                (item) =>
-                  item.name?.toLowerCase().includes(title.toLowerCase()) &&
-                  item.albumArtist
-                    ?.toLowerCase()
-                    .includes(artist.toLowerCase()),
-              );
-
-              const songToAdd = exactMatch || searchResults[0];
-
+            if (songToAdd) {
               console.log(
-                `Found song in library: ${songToAdd.name} by ${songToAdd.albumArtist}`,
+                `✅ Found song in library: ${songToAdd.name} by ${songToAdd.albumArtist}`,
               );
 
               // Add the song to the playlist
@@ -122,10 +124,10 @@ export async function POST(request: NextRequest) {
                 songToAdd.id,
               ]);
               addedToPlaylist = true;
-              console.log(`Successfully added song to playlist ${playlistId}`);
+              console.log(`🎵 Successfully added song to playlist ${playlistId}`);
             } else {
               playlistError = "Song not found in library after scan";
-              console.log("Song not found in library after waiting for scan");
+              console.log("❌ Song not found in library after waiting for scan");
             }
           } catch (error) {
             playlistError =
@@ -154,6 +156,12 @@ export async function POST(request: NextRequest) {
       libraryScanError: scanError,
       addedToPlaylist,
       playlistError,
+      details: {
+        downloadSuccess: true,
+        scanTriggered,
+        scanCompleted: scanTriggered && !scanError,
+        playlistAddition: addedToPlaylist ? "success" : playlistError || "not attempted"
+      }
     });
   } catch (error) {
     console.error("Error in download API:", error);

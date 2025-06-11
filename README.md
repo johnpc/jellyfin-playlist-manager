@@ -125,7 +125,8 @@ For songs that aren't in your library, the app can automatically download them:
 3. **Metadata Enhancement**: Fetches proper metadata from MusicBrainz and injects ID3 tags
 4. **Library Organization**: Creates artist directories and uses proper naming conventions
 5. **Library Integration**: Saves the file to your configured music directory
-6. **Auto-Scan**: Triggers a Jellyfin library scan to detect the new song
+6. **Smart Library Scanning**: Triggers targeted music library scans and monitors progress in real-time
+7. **Auto-Playlist Addition**: Automatically adds the downloaded song to your playlist once scanning completes
 
 ### Metadata Enhancement
 

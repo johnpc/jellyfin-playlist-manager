@@ -41,6 +41,28 @@ export interface SearchResult {
   imageTags?: Record<string, string>;
 }
 
+export interface JellyfinTask {
+  Id?: string;
+  Name?: string;
+  State?: "Idle" | "Running" | "Cancelling" | "Cancelled";
+  CurrentProgressPercentage?: number;
+  StatusMessage?: string;
+  Key?: string;
+  Category?: string;
+  Description?: string;
+  IsHidden?: boolean;
+  LastExecutionResult?: {
+    StartTimeUtc?: string;
+    EndTimeUtc?: string;
+    Status?: "Completed" | "Failed" | "Cancelled" | "Aborted";
+    Name?: string;
+    Key?: string;
+    Id?: string;
+    ErrorMessage?: string;
+    LongErrorMessage?: string;
+  };
+}
+
 export interface AuthState {
   isAuthenticated: boolean;
   config: JellyfinConfig | null;

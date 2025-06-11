@@ -9,6 +9,7 @@ import type {
   Playlist,
   PlaylistItem,
   SearchResult,
+  JellyfinTask,
 } from "@/types/jellyfin";
 
 class JellyfinClient {
@@ -440,16 +441,54 @@ class JellyfinClient {
     return `${this.api.basePath}/Items/${itemId}/Images/${type}?tag=${imageTag}&quality=90&maxWidth=300&maxHeight=300`;
   }
 
-  async triggerLibraryScan(): Promise<boolean> {
+  async getMusicLibraryId(): Promise<string | null> {
+    if (!this.api || !this.userId) {
+      throw new Error("Not authenticated");
+    }
+
+    try {
+      const itemsApi = getItemsApi(this.api);
+      const response = await itemsApi.getItems({
+        userId: this.userId,
+        includeItemTypes: ["CollectionFolder"],
+      });
+
+      // Find the music library
+      const musicLibrary = response.data.Items?.find(
+        (item) => item.CollectionType === "music"
+      );
+
+      return musicLibrary?.Id || null;
+    } catch (error) {
+      console.error("Error getting music library ID:", error);
+      return null;
+    }
+  }
+
+  async triggerMusicLibraryScan(): Promise<string | null> {
     if (!this.api || !this.accessToken) {
       throw new Error("Not authenticated");
     }
 
     try {
-      // Trigger a library scan using the Jellyfin API
+      const musicLibraryId = await this.getMusicLibraryId();
+      if (!musicLibraryId) {
+        console.error("Music library not found");
+        return null;
+      }
+
+      console.log(`🎵 Triggering scan for music library: ${musicLibraryId}`);
+
+      // Trigger a scan of just the music library
       await this.api.axiosInstance.post(
-        "/Library/Refresh",
-        {},
+        `/Items/${musicLibraryId}/Refresh`,
+        {
+          Recursive: true,
+          ImageRefreshMode: "Default",
+          MetadataRefreshMode: "Default", 
+          ReplaceAllImages: false,
+          ReplaceAllMetadata: false,
+        },
         {
           baseURL: this.api.basePath,
           headers: {
@@ -459,12 +498,163 @@ class JellyfinClient {
         },
       );
 
-      console.log("Library scan triggered successfully");
-      return true;
+      console.log("✅ Music library scan triggered successfully");
+      return musicLibraryId;
     } catch (error) {
-      console.error("Failed to trigger library scan:", error);
-      return false;
+      console.error("❌ Failed to trigger music library scan:", error);
+      return null;
     }
+  }
+
+  async getActiveTasks(): Promise<JellyfinTask[]> {
+    if (!this.api || !this.accessToken) {
+      throw new Error("Not authenticated");
+    }
+
+    try {
+      const response = await this.api.axiosInstance.get("/ScheduledTasks", {
+        baseURL: this.api.basePath,
+        headers: {
+          Authorization: `MediaBrowser Token="${this.accessToken}"`,
+          "X-Emby-Token": this.accessToken,
+        },
+      });
+
+      return response.data || [];
+    } catch (error) {
+      console.error("Error getting active tasks:", error);
+      return [];
+    }
+  }
+
+  async getTaskInfo(taskId?: string): Promise<JellyfinTask | null> {
+    if (!this.api || !this.accessToken) {
+      throw new Error("Not authenticated");
+    }
+
+    try {
+      const endpoint = taskId ? `/ScheduledTasks/${taskId}` : "/ScheduledTasks/Running";
+      const response = await this.api.axiosInstance.get(endpoint, {
+        baseURL: this.api.basePath,
+        headers: {
+          Authorization: `MediaBrowser Token="${this.accessToken}"`,
+          "X-Emby-Token": this.accessToken,
+        },
+      });
+
+      return response.data;
+    } catch (error) {
+      console.error("Error getting task info:", error);
+      return null;
+    }
+  }
+
+  async waitForLibraryScanCompletion(
+    maxWaitTimeMs: number = 120000, // 2 minutes max
+    pollIntervalMs: number = 2000, // Check every 2 seconds
+  ): Promise<boolean> {
+    if (!this.api || !this.accessToken) {
+      throw new Error("Not authenticated");
+    }
+
+    const startTime = Date.now();
+    let lastProgressLog = 0;
+    
+    console.log("Starting to monitor library scan progress...");
+    
+    while (Date.now() - startTime < maxWaitTimeMs) {
+      try {
+        const tasks = await this.getActiveTasks();
+        
+        // Look for library scan tasks - be more specific about music library scans
+        const scanTasks = tasks.filter(task => {
+          const name = task.Name?.toLowerCase() || "";
+          const key = task.Key?.toLowerCase() || "";
+          return (
+            name.includes("scan") || 
+            name.includes("library") ||
+            name.includes("refresh") ||
+            key.includes("refresh") ||
+            key.includes("scan")
+          );
+        });
+
+        // Check if any scan tasks are currently running
+        const runningScanTasks = scanTasks.filter(task => 
+          task.State === "Running" || task.State === "Cancelling"
+        );
+
+        if (runningScanTasks.length === 0) {
+          console.log("✅ No active library scan tasks found - scan completed");
+          return true;
+        }
+
+        // Log progress periodically (every 10 seconds) to avoid spam
+        const now = Date.now();
+        if (now - lastProgressLog > 10000) {
+          console.log(`📊 Found ${runningScanTasks.length} active scan task(s):`);
+          
+          runningScanTasks.forEach(task => {
+            const progress = task.CurrentProgressPercentage;
+            const status = task.StatusMessage || "Processing...";
+            
+            if (progress !== undefined && progress !== null) {
+              console.log(`  • "${task.Name}": ${progress}% - ${status}`);
+            } else {
+              console.log(`  • "${task.Name}": ${status}`);
+            }
+          });
+          
+          lastProgressLog = now;
+        }
+
+        // Wait before checking again
+        await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+        
+      } catch (error) {
+        console.error("Error checking task status:", error);
+        // Continue trying in case it's a temporary error
+        await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+      }
+    }
+
+    console.log("⏰ Timeout waiting for library scan to complete");
+    return false;
+  }
+
+  async findSongInLibrary(title: string, artist: string): Promise<SearchResult | null> {
+    if (!this.api || !this.userId) {
+      throw new Error("Not authenticated");
+    }
+
+    try {
+      // Search for the specific song
+      const searchResults = await this.searchItems(`${title} ${artist}`, 20);
+      
+      if (searchResults && searchResults.length > 0) {
+        // Find the best match (exact title and artist match preferred)
+        const exactMatch = searchResults.find(
+          (item) =>
+            item.name?.toLowerCase().includes(title.toLowerCase()) &&
+            item.albumArtist?.toLowerCase().includes(artist.toLowerCase()),
+        );
+
+        const bestMatch = exactMatch || searchResults[0];
+        console.log(`🎵 Found song in library: "${bestMatch.name}" by "${bestMatch.albumArtist}"`);
+        return bestMatch;
+      }
+      
+      console.log(`❌ Song "${title}" by "${artist}" not found in library`);
+      return null;
+    } catch (error) {
+      console.error("Error searching for song in library:", error);
+      return null;
+    }
+  }
+
+  async triggerLibraryScan(): Promise<boolean> {
+    // Keep the old method for backward compatibility
+    return (await this.triggerMusicLibraryScan()) !== null;
   }
 }
 
