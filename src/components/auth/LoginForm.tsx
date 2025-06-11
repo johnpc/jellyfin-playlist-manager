@@ -8,9 +8,9 @@ import { loginFormSchema } from "@/lib/schemas/auth";
 import type { JellyfinConfig } from "@/types/jellyfin";
 
 const STORAGE_KEYS = {
-  SERVER_URL: 'jellyfin-server-url',
-  USERNAME: 'jellyfin-username',
-  PASSWORD: 'jellyfin-password',
+  SERVER_URL: "jellyfin-server-url",
+  USERNAME: "jellyfin-username",
+  PASSWORD: "jellyfin-password",
 } as const;
 
 export default function LoginForm() {
@@ -38,13 +38,13 @@ export default function LoginForm() {
     const savedPassword = localStorage.getItem(STORAGE_KEYS.PASSWORD);
 
     if (savedServerUrl) {
-      setValue('serverUrl', savedServerUrl);
+      setValue("serverUrl", savedServerUrl);
     }
     if (savedUsername) {
-      setValue('username', savedUsername);
+      setValue("username", savedUsername);
     }
     if (savedPassword) {
-      setValue('password', savedPassword);
+      setValue("password", savedPassword);
     }
   }, [setValue]);
 

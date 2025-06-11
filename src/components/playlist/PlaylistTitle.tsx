@@ -8,7 +8,10 @@ interface PlaylistTitleProps {
   playlistId: string;
 }
 
-export default function PlaylistTitle({ playlist, playlistId }: PlaylistTitleProps) {
+export default function PlaylistTitle({
+  playlist,
+  playlistId,
+}: PlaylistTitleProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [newName, setNewName] = useState(playlist.name);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -25,8 +28,11 @@ export default function PlaylistTitle({ playlist, playlistId }: PlaylistTitlePro
     setIsUpdating(true);
     try {
       // Update the playlist name - this will create a new playlist and return its ID
-      const newPlaylistId = await jellyfinClient.updatePlaylistName(playlistId, newName);
-      
+      const newPlaylistId = await jellyfinClient.updatePlaylistName(
+        playlistId,
+        newName,
+      );
+
       // Navigate to the new playlist URL
       router.replace(`/playlist/${newPlaylistId}`);
     } catch (error) {

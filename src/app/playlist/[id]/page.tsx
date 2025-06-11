@@ -24,7 +24,10 @@ import PlaylistItem from "@/components/playlist/PlaylistItem";
 import PlaylistTitle from "@/components/playlist/PlaylistTitle";
 import PlaylistSearch from "@/components/playlist/PlaylistSearch";
 import PlaylistSuggestions from "@/components/playlist/PlaylistSuggestions";
-import type { PlaylistItem as PlaylistItemType, Playlist } from "@/types/jellyfin";
+import type {
+  PlaylistItem as PlaylistItemType,
+  Playlist,
+} from "@/types/jellyfin";
 
 export default function PlaylistDetailsPage() {
   const router = useRouter();
@@ -81,10 +84,7 @@ export default function PlaylistDetailsPage() {
       try {
         // Optimistically update the UI
         const newItems = arrayMove(playlistItems, oldIndex, newIndex);
-        queryClient.setQueryData(
-          ["playlist", playlistId],
-          newItems,
-        );
+        queryClient.setQueryData(["playlist", playlistId], newItems);
 
         // Update the server
         await jellyfinClient.movePlaylistItem(
@@ -108,7 +108,9 @@ export default function PlaylistDetailsPage() {
       await jellyfinClient.removeItemFromPlaylist(playlistId, itemId);
       // Refresh the playlist items
       queryClient.invalidateQueries({ queryKey: ["playlist", playlistId] });
-      queryClient.invalidateQueries({ queryKey: ["playlist-details", playlistId] });
+      queryClient.invalidateQueries({
+        queryKey: ["playlist-details", playlistId],
+      });
     } catch (error) {
       console.error("Failed to remove item from playlist:", error);
     } finally {
@@ -162,18 +164,16 @@ export default function PlaylistDetailsPage() {
             </svg>
             Back
           </button>
-          
+
           <PlaylistTitle playlist={playlistDetails} playlistId={playlistId} />
-          
+
           <div className="mt-2 flex items-center gap-4 text-sm text-gray-500">
             <span>
               {playlistDetails.itemCount}{" "}
               {playlistDetails.itemCount === 1 ? "track" : "tracks"}
             </span>
             {playlistDetails.duration && (
-              <span>
-                {Math.floor(playlistDetails.duration / 60)} minutes
-              </span>
+              <span>{Math.floor(playlistDetails.duration / 60)} minutes</span>
             )}
             {(isReordering || isRemoving) && (
               <span className="text-indigo-600">
@@ -189,7 +189,9 @@ export default function PlaylistDetailsPage() {
               try {
                 await jellyfinClient.addItemsToPlaylist(playlistId, [itemId]);
                 // Refresh the playlist items
-                queryClient.invalidateQueries({ queryKey: ["playlist", playlistId] });
+                queryClient.invalidateQueries({
+                  queryKey: ["playlist", playlistId],
+                });
               } catch (error) {
                 console.error("Failed to add item to playlist:", error);
                 throw error;
@@ -205,7 +207,9 @@ export default function PlaylistDetailsPage() {
             try {
               await jellyfinClient.addItemsToPlaylist(playlistId, [itemId]);
               // Refresh the playlist items
-              queryClient.invalidateQueries({ queryKey: ["playlist", playlistId] });
+              queryClient.invalidateQueries({
+                queryKey: ["playlist", playlistId],
+              });
             } catch (error) {
               console.error("Failed to add suggestion to playlist:", error);
               throw error;

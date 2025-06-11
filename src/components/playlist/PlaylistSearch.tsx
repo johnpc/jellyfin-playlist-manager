@@ -111,7 +111,9 @@ export default function PlaylistSearch({ onAddItem }: PlaylistSearchProps) {
               Error loading results
             </div>
           ) : searchResults?.length === 0 ? (
-            <div className="px-4 py-3 text-sm text-gray-500">No results found</div>
+            <div className="px-4 py-3 text-sm text-gray-500">
+              No results found
+            </div>
           ) : (
             <ul className="py-2">
               {searchResults?.map((result) => (

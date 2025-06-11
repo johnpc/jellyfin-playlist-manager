@@ -11,7 +11,9 @@ import type { Playlist } from "@/types/jellyfin";
 export default function PlaylistsView() {
   const [isCreating, setIsCreating] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
-  const [playlistToDelete, setPlaylistToDelete] = useState<Playlist | null>(null);
+  const [playlistToDelete, setPlaylistToDelete] = useState<Playlist | null>(
+    null,
+  );
   const [isDeleting, setIsDeleting] = useState(false);
   const logout = useAuthStore((state) => state.logout);
   const router = useRouter();

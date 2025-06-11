@@ -5,9 +5,9 @@ export async function middleware(request: NextRequest) {
   // Check for authentication token in cookies
   const authToken = request.cookies.get("jellyfin-auth-token");
   const isAuthenticated = !!authToken?.value;
-  
+
   console.log({ isAuthenticated, hasToken: !!authToken });
-  
+
   const isAuthPage = request.nextUrl.pathname === "/auth";
 
   if (!isAuthenticated && !isAuthPage) {

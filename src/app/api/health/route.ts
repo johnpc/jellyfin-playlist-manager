@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  return NextResponse.json({ 
-    status: "healthy", 
+  return NextResponse.json({
+    status: "healthy",
     timestamp: new Date().toISOString(),
-    service: "jellyfin-playlist-manager"
+    service: "jellyfin-playlist-manager",
   });
 }

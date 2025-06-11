@@ -53,7 +53,11 @@ class JellyfinClient {
     }
   }
 
-  initializeFromStorage(config: JellyfinConfig, accessToken: string, userId: string) {
+  initializeFromStorage(
+    config: JellyfinConfig,
+    accessToken: string,
+    userId: string,
+  ) {
     this.api = this.jellyfin.createApi(config.serverUrl);
     this.api.accessToken = accessToken;
     this.accessToken = accessToken;
@@ -68,6 +72,7 @@ class JellyfinClient {
 
       const userApi = getUserApi(this.api);
       const response = await userApi.getCurrentUser();
+      this.userId = response.data.Id ?? "";
 
       const user: JellyfinUser = {
         id: response.data.Id!,
@@ -75,7 +80,7 @@ class JellyfinClient {
         serverId: response.data.ServerId!,
       };
 
-      console.log({loggedIn: true, user});
+      console.log({ loggedIn: true, user });
       return true;
     } catch (error) {
       console.error("Authentication error:", error);
@@ -128,19 +133,22 @@ class JellyfinClient {
       });
 
       return (
-        response.data.Items?.map((item) => ({
-          id: item.Id!,
-          name: item.Name!,
-          type: "Audio" as const,
-          albumArtist: item.AlbumArtist,
-          album: item.Album,
-          duration: item.RunTimeTicks
-            ? Math.floor(item.RunTimeTicks / 10000000)
-            : undefined,
-          indexNumber: item.IndexNumber,
-          parentIndexNumber: item.ParentIndexNumber,
-          imageTags: item.ImageTags,
-        } as PlaylistItem)) || []
+        response.data.Items?.map(
+          (item) =>
+            ({
+              id: item.Id!,
+              name: item.Name!,
+              type: "Audio" as const,
+              albumArtist: item.AlbumArtist,
+              album: item.Album,
+              duration: item.RunTimeTicks
+                ? Math.floor(item.RunTimeTicks / 10000000)
+                : undefined,
+              indexNumber: item.IndexNumber,
+              parentIndexNumber: item.ParentIndexNumber,
+              imageTags: item.ImageTags,
+            }) as PlaylistItem,
+        ) || []
       );
     } catch (error) {
       console.error("Error fetching playlist items:", error);
@@ -203,19 +211,16 @@ class JellyfinClient {
 
     try {
       // Use direct API call with explicit authentication headers
-      await this.api.axiosInstance.delete(
-        `/Playlists/${playlistId}/Items`,
-        {
-          baseURL: this.api.basePath,
-          headers: {
-            'Authorization': `MediaBrowser Token="${this.accessToken}"`,
-            'X-Emby-Token': this.accessToken,
-          },
-          params: {
-            entryIds: itemId,
-          },
-        }
-      );
+      await this.api.axiosInstance.delete(`/Playlists/${playlistId}/Items`, {
+        baseURL: this.api.basePath,
+        headers: {
+          Authorization: `MediaBrowser Token="${this.accessToken}"`,
+          "X-Emby-Token": this.accessToken,
+        },
+        params: {
+          entryIds: itemId,
+        },
+      });
     } catch (error) {
       console.error("Error removing item from playlist:", error);
       throw new Error("Failed to remove item from playlist");
@@ -269,7 +274,7 @@ class JellyfinClient {
 
       // First, get all items in the current playlist
       const items = await this.getPlaylistItems(playlistId);
-      const itemIds = items.map(item => item.id);
+      const itemIds = items.map((item) => item.id);
 
       // Create a new playlist with the new name
       const newPlaylistId = await this.createPlaylist(newName);
@@ -307,10 +312,10 @@ class JellyfinClient {
         {
           baseURL: this.api.basePath,
           headers: {
-            'Authorization': `MediaBrowser Token="${this.accessToken}"`,
-            'X-Emby-Token': this.accessToken,
+            Authorization: `MediaBrowser Token="${this.accessToken}"`,
+            "X-Emby-Token": this.accessToken,
           },
-        }
+        },
       );
     } catch (error) {
       console.error("Error moving playlist item:", error);
@@ -328,8 +333,8 @@ class JellyfinClient {
       await this.api.axiosInstance.delete(`/Items/${playlistId}`, {
         baseURL: this.api.basePath,
         headers: {
-          'Authorization': `MediaBrowser Token="${this.accessToken}"`,
-          'X-Emby-Token': this.accessToken,
+          Authorization: `MediaBrowser Token="${this.accessToken}"`,
+          "X-Emby-Token": this.accessToken,
         },
       });
     } catch (error) {
@@ -395,20 +400,26 @@ class JellyfinClient {
         if (bArtist === queryLower && aArtist !== queryLower) return 1;
 
         // Artist starts with query
-        if (aArtist.startsWith(queryLower) && !bArtist.startsWith(queryLower)) return -1;
-        if (bArtist.startsWith(queryLower) && !aArtist.startsWith(queryLower)) return 1;
+        if (aArtist.startsWith(queryLower) && !bArtist.startsWith(queryLower))
+          return -1;
+        if (bArtist.startsWith(queryLower) && !aArtist.startsWith(queryLower))
+          return 1;
 
         // Artist contains query
-        if (aArtist.includes(queryLower) && !bArtist.includes(queryLower)) return -1;
-        if (bArtist.includes(queryLower) && !aArtist.includes(queryLower)) return 1;
+        if (aArtist.includes(queryLower) && !bArtist.includes(queryLower))
+          return -1;
+        if (bArtist.includes(queryLower) && !aArtist.includes(queryLower))
+          return 1;
 
         // Song name matches
-        if (aName.includes(queryLower) && !bName.includes(queryLower)) return -1;
+        if (aName.includes(queryLower) && !bName.includes(queryLower))
+          return -1;
         if (bName.includes(queryLower) && !aName.includes(queryLower)) return 1;
 
         // Sort by artist, then album, then song
         if (aArtist !== bArtist) return aArtist.localeCompare(bArtist);
-        if (a.album !== b.album) return (a.album || "").localeCompare(b.album || "");
+        if (a.album !== b.album)
+          return (a.album || "").localeCompare(b.album || "");
         return aName.localeCompare(bName);
       });
     } catch (error) {
@@ -437,21 +448,21 @@ class JellyfinClient {
     try {
       // Trigger a library scan using the Jellyfin API
       await this.api.axiosInstance.post(
-        '/Library/Refresh',
+        "/Library/Refresh",
         {},
         {
           baseURL: this.api.basePath,
           headers: {
-            'Authorization': `MediaBrowser Token="${this.accessToken}"`,
-            'X-Emby-Token': this.accessToken,
+            Authorization: `MediaBrowser Token="${this.accessToken}"`,
+            "X-Emby-Token": this.accessToken,
           },
-        }
+        },
       );
 
-      console.log('Library scan triggered successfully');
+      console.log("Library scan triggered successfully");
       return true;
     } catch (error) {
-      console.error('Failed to trigger library scan:', error);
+      console.error("Failed to trigger library scan:", error);
       return false;
     }
   }

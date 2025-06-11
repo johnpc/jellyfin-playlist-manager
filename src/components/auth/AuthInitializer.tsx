@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { useAuthStore } from '@/lib/store/auth';
-import { jellyfinClient } from '@/lib/api/jellyfin';
+import { useEffect } from "react";
+import { useAuthStore } from "@/lib/store/auth";
+import { jellyfinClient } from "@/lib/api/jellyfin";
 
 export default function AuthInitializer() {
   const { config, user, accessToken } = useAuthStore();

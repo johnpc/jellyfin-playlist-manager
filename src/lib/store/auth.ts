@@ -26,10 +26,10 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const { user, accessToken } =
             await jellyfinClient.authenticate(config);
-          
+
           // Set HTTP-only cookie for middleware
-          setCookie('jellyfin-auth-token', accessToken, 7);
-          
+          setCookie("jellyfin-auth-token", accessToken, 7);
+
           set({
             isAuthenticated: true,
             config,
@@ -44,8 +44,8 @@ export const useAuthStore = create<AuthStore>()(
 
       logout: () => {
         // Clear the auth cookie
-        deleteCookie('jellyfin-auth-token');
-        
+        deleteCookie("jellyfin-auth-token");
+
         set({
           isAuthenticated: false,
           config: null,

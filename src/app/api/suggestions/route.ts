@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     if (!playlistItems || !Array.isArray(playlistItems)) {
       return NextResponse.json(
         { error: "Invalid playlist items provided" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     console.error("Error in suggestions API:", error);
     return NextResponse.json(
       { error: "Failed to generate suggestions" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

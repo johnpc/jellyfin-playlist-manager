@@ -4,8 +4,15 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { jellyfinClient } from "@/lib/api/jellyfin";
-import { findBestMatch, generateSearchQueries } from "@/lib/utils/search-matching";
-import type { PlaylistItem, AISuggestion, SuggestionWithAvailability } from "@/types/jellyfin";
+import {
+  findBestMatch,
+  generateSearchQueries,
+} from "@/lib/utils/search-matching";
+import type {
+  PlaylistItem,
+  AISuggestion,
+  SuggestionWithAvailability,
+} from "@/types/jellyfin";
 
 interface PlaylistSuggestionsProps {
   playlistItems: PlaylistItem[];
@@ -13,7 +20,11 @@ interface PlaylistSuggestionsProps {
   onAddItem: (itemId: string) => Promise<void>;
 }
 
-export default function PlaylistSuggestions({ playlistItems, playlistId, onAddItem }: PlaylistSuggestionsProps) {
+export default function PlaylistSuggestions({
+  playlistItems,
+  playlistId,
+  onAddItem,
+}: PlaylistSuggestionsProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAdding, setIsAdding] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
@@ -24,10 +35,13 @@ export default function PlaylistSuggestions({ playlistItems, playlistId, onAddIt
     isLoading,
     error,
   } = useQuery<SuggestionWithAvailability[]>({
-    queryKey: ["ai-suggestions", playlistItems.map(item => item.id).join(",")],
+    queryKey: [
+      "ai-suggestions",
+      playlistItems.map((item) => item.id).join(","),
+    ],
     queryFn: async () => {
       if (playlistItems.length === 0) return [];
-      
+
       // Get AI suggestions
       const response = await fetch("/api/suggestions", {
         method: "POST",
@@ -35,7 +49,7 @@ export default function PlaylistSuggestions({ playlistItems, playlistId, onAddIt
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          playlistItems: playlistItems.map(item => ({
+          playlistItems: playlistItems.map((item) => ({
             name: item.name,
             albumArtist: item.albumArtist,
             album: item.album,
@@ -47,36 +61,45 @@ export default function PlaylistSuggestions({ playlistItems, playlistId, onAddIt
         throw new Error("Failed to fetch AI suggestions");
       }
 
-      const { suggestions: aiSuggestions }: { suggestions: AISuggestion[] } = await response.json();
-      
+      const { suggestions: aiSuggestions }: { suggestions: AISuggestion[] } =
+        await response.json();
+
       // Check availability of each suggestion in Jellyfin library
       const suggestionsWithAvailability: SuggestionWithAvailability[] = [];
-      
+
       for (const suggestion of aiSuggestions) {
         try {
           // Generate multiple search queries for better coverage
           const searchQueries = generateSearchQueries(suggestion);
           let bestMatch = null;
-          
-          console.log(`Searching for: "${suggestion.title}" by "${suggestion.artist}"`);
+
+          console.log(
+            `Searching for: "${suggestion.title}" by "${suggestion.artist}"`,
+          );
           console.log(`Search queries:`, searchQueries);
-          
+
           // Try each search query until we find a good match
           for (const query of searchQueries) {
             const searchResults = await jellyfinClient.searchItems(query, 10);
-            console.log(`Query "${query}" returned ${searchResults.length} results`);
-            
+            console.log(
+              `Query "${query}" returned ${searchResults.length} results`,
+            );
+
             const match = findBestMatch(suggestion, searchResults);
-            
+
             if (match) {
-              console.log(`Found match: "${match.name}" by "${match.albumArtist}"`);
+              console.log(
+                `Found match: "${match.name}" by "${match.albumArtist}"`,
+              );
               bestMatch = match;
               break; // Found a good match, no need to try other queries
             }
           }
-          
+
           if (!bestMatch) {
-            console.log(`No match found for "${suggestion.title}" by "${suggestion.artist}"`);
+            console.log(
+              `No match found for "${suggestion.title}" by "${suggestion.artist}"`,
+            );
           }
 
           suggestionsWithAvailability.push({
@@ -92,18 +115,20 @@ export default function PlaylistSuggestions({ playlistItems, playlistId, onAddIt
           });
         }
       }
-      
+
       return suggestionsWithAvailability;
     },
     enabled: playlistItems.length > 0,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  const handleAddSuggestion = async (suggestion: SuggestionWithAvailability) => {
+  const handleAddSuggestion = async (
+    suggestion: SuggestionWithAvailability,
+  ) => {
     if (!suggestion.isAvailable || !suggestion.jellyfinItem) {
       return; // Can't add unavailable items
     }
-    
+
     setIsAdding(suggestion.jellyfinItem.id);
     try {
       await onAddItem(suggestion.jellyfinItem.id);
@@ -117,7 +142,7 @@ export default function PlaylistSuggestions({ playlistItems, playlistId, onAddIt
   const handleDownloadSong = async (suggestion: SuggestionWithAvailability) => {
     const downloadKey = `${suggestion.title}-${suggestion.artist}`;
     setIsDownloading(downloadKey);
-    
+
     try {
       const response = await fetch("/api/download", {
         method: "POST",
@@ -139,29 +164,37 @@ export default function PlaylistSuggestions({ playlistItems, playlistId, onAddIt
       }
 
       console.log("Download successful:", result.message);
-      
+
       if (result.addedToPlaylist) {
         console.log("Song automatically added to playlist!");
-        alert(`✅ Success! "${suggestion.title}" was downloaded and added to your playlist automatically!`);
+        alert(
+          `✅ Success! "${suggestion.title}" was downloaded and added to your playlist automatically!`,
+        );
         // Refresh the playlist to show the new song
         // You might want to trigger a playlist refresh here
       } else if (result.playlistError) {
-        console.log("Download succeeded but failed to add to playlist:", result.playlistError);
-        alert(`⚠️ Download succeeded, but couldn't add to playlist automatically: ${result.playlistError}`);
+        console.log(
+          "Download succeeded but failed to add to playlist:",
+          result.playlistError,
+        );
+        alert(
+          `⚠️ Download succeeded, but couldn't add to playlist automatically: ${result.playlistError}`,
+        );
       } else {
         alert(`✅ "${suggestion.title}" downloaded successfully!`);
       }
-      
+
       // Show success state briefly
       setTimeout(() => {
         setIsDownloading(null);
         // Optionally refresh suggestions to check if the song is now available
         // You might want to invalidate the query here
       }, 2000);
-
     } catch (error) {
       console.error("Download failed:", error);
-      alert(`Download failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(
+        `Download failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
       setIsDownloading(null);
     }
   };
@@ -218,9 +251,25 @@ export default function PlaylistSuggestions({ playlistItems, playlistId, onAddIt
         <div className="px-4 pb-4">
           {isLoading ? (
             <div className="text-sm text-gray-500 py-4 flex items-center">
-              <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-purple-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                className="animate-spin -ml-1 mr-3 h-4 w-4 text-purple-500"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               AI is analyzing your playlist...
             </div>
@@ -240,7 +289,8 @@ export default function PlaylistSuggestions({ playlistItems, playlistId, onAddIt
                   className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50 group"
                 >
                   <div className="flex items-center flex-1 min-w-0">
-                    {suggestion.isAvailable && suggestion.jellyfinItem?.imageTags?.Primary ? (
+                    {suggestion.isAvailable &&
+                    suggestion.jellyfinItem?.imageTags?.Primary ? (
                       <div className="relative h-10 w-10 flex-shrink-0">
                         <Image
                           src={jellyfinClient.getImageUrl(
@@ -291,7 +341,7 @@ export default function PlaylistSuggestions({ playlistItems, playlistId, onAddIt
                       )}
                     </div>
                   </div>
-                  
+
                   {suggestion.isAvailable ? (
                     <button
                       onClick={() => handleAddSuggestion(suggestion)}
@@ -336,15 +386,20 @@ export default function PlaylistSuggestions({ playlistItems, playlistId, onAddIt
                   ) : (
                     <button
                       onClick={() => handleDownloadSong(suggestion)}
-                      disabled={isDownloading === `${suggestion.title}-${suggestion.artist}`}
+                      disabled={
+                        isDownloading ===
+                        `${suggestion.title}-${suggestion.artist}`
+                      }
                       className={`ml-2 p-1 rounded-full ${
-                        isDownloading === `${suggestion.title}-${suggestion.artist}`
+                        isDownloading ===
+                        `${suggestion.title}-${suggestion.artist}`
                           ? "text-green-500"
                           : "text-gray-400 opacity-0 group-hover:opacity-100 hover:text-blue-600"
                       }`}
                       title="Download from YouTube and add to playlist"
                     >
-                      {isDownloading === `${suggestion.title}-${suggestion.artist}` ? (
+                      {isDownloading ===
+                      `${suggestion.title}-${suggestion.artist}` ? (
                         <svg
                           className="w-5 h-5 animate-spin"
                           fill="none"

@@ -2,3 +2,6 @@
 *.ico
 .gitignore
 .prettierignore
+.dockerignore
+Dockerfile
+*.sh

@@ -79,9 +79,7 @@ To enable AI-powered playlist suggestions, you need to:
      "Statement": [
        {
          "Effect": "Allow",
-         "Action": [
-           "bedrock:InvokeModel"
-         ],
+         "Action": ["bedrock:InvokeModel"],
          "Resource": "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-haiku-20240307-v1:0"
        }
      ]
@@ -142,20 +140,23 @@ The app goes beyond simple downloading by properly tagging your music files:
 ### Setup for Downloads
 
 1. **Install yt-dlp**: Make sure yt-dlp is installed and available in your system PATH
+
    ```bash
    # On macOS with Homebrew (recommended)
    brew install yt-dlp
-   
+
    # On other systems, see: https://github.com/yt-dlp/yt-dlp#installation
    ```
 
 2. **Verify Installation**: Check that yt-dlp is working
+
    ```bash
    which yt-dlp
    yt-dlp --version
    ```
 
 3. **Path Configuration**: The app is configured to use yt-dlp at `/opt/homebrew/bin/yt-dlp` (standard Homebrew location). If your yt-dlp is installed elsewhere, you can set the `YT_DLP_PATH` environment variable:
+
    ```env
    YT_DLP_PATH=/usr/local/bin/yt-dlp
    ```
@@ -163,20 +164,25 @@ The app goes beyond simple downloading by properly tagging your music files:
    The app now directly executes yt-dlp using Node.js child processes for better reliability.
 
 4. **YouTube Cookies (Recommended)**: To avoid YouTube's bot detection, export your browser cookies:
-   
+
    **Option A: Browser Extension (Easiest)**
+
    - Install a cookie export extension like "Get cookies.txt LOCALLY" for Chrome/Firefox
    - Visit YouTube while logged in
    - Export cookies to `cookies.txt` in your project root
-   
+
    **Option B: Manual Export**
+
    - Use yt-dlp's built-in cookie extraction:
+
    ```bash
    yt-dlp --cookies-from-browser chrome --cookies cookies.txt --no-download "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
    ```
-   
+
    **Option C: Custom Path**
+
    - Place your cookies file anywhere and set the path:
+
    ```env
    COOKIES_PATH=/path/to/your/cookies.txt
    ```

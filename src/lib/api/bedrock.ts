@@ -1,4 +1,7 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import {
+  BedrockRuntimeClient,
+  InvokeModelCommand,
+} from "@aws-sdk/client-bedrock-runtime";
 
 // Initialize Bedrock client
 const bedrockClient = new BedrockRuntimeClient({
@@ -17,7 +20,7 @@ export interface AISuggestion {
 }
 
 export async function generatePlaylistSuggestions(
-  playlistItems: Array<{ name: string; albumArtist?: string; album?: string }>
+  playlistItems: Array<{ name: string; albumArtist?: string; album?: string }>,
 ): Promise<AISuggestion[]> {
   // Validate environment variables
   if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
@@ -28,8 +31,11 @@ export async function generatePlaylistSuggestions(
   // Create a prompt based on the playlist items
   const playlistDescription = playlistItems
     .slice(0, 10) // Limit to first 10 items to avoid token limits
-    .map(item => `"${item.name}" by ${item.albumArtist || 'Unknown Artist'}${item.album ? ` (${item.album})` : ''}`)
-    .join(', ');
+    .map(
+      (item) =>
+        `"${item.name}" by ${item.albumArtist || "Unknown Artist"}${item.album ? ` (${item.album})` : ""}`,
+    )
+    .join(", ");
 
   const prompt = `Based on this music playlist: ${playlistDescription}
 
@@ -64,18 +70,18 @@ Only return the JSON array, no other text.`;
         messages: [
           {
             role: "user",
-            content: prompt
-          }
-        ]
-      })
+            content: prompt,
+          },
+        ],
+      }),
     });
 
     const response = await bedrockClient.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    
+
     // Parse the AI response
     const aiResponse = responseBody.content[0].text;
-    
+
     // Try to parse the JSON response
     try {
       const suggestions = JSON.parse(aiResponse);
