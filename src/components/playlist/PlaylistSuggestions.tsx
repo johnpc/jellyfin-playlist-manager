@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { jellyfinClient } from "@/lib/api/jellyfin";
+import { useAuthStore } from "@/lib/store/auth";
 import {
   findBestMatch,
   generateSearchQueries,
@@ -28,6 +29,7 @@ export default function PlaylistSuggestions({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isAdding, setIsAdding] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
+  const { accessToken, config } = useAuthStore();
 
   // Generate AI-powered suggestions based on playlist content
   const {
@@ -148,6 +150,9 @@ export default function PlaylistSuggestions({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          // Send auth details in headers for server-side use
+          ...(accessToken && { "x-jellyfin-auth": accessToken }),
+          ...(config?.serverUrl && { "x-jellyfin-server": config.serverUrl }),
         },
         body: JSON.stringify({
           title: suggestion.title,

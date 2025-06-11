@@ -45,25 +45,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 500 });
     }
 
-    // Try to trigger library scan with authentication from cookies
+    // Try to trigger library scan with authentication from request
     let scanTriggered = false;
     let scanError = null;
     let addedToPlaylist = false;
     let playlistError = null;
 
     try {
-      // Get auth token from cookie (set by middleware)
-      const authToken = request.cookies.get("jellyfin-auth-token");
-
-      if (authToken?.value) {
+      // Get auth details from request headers (sent by client)
+      const authHeader = request.headers.get("x-jellyfin-auth");
+      const serverUrlHeader = request.headers.get("x-jellyfin-server");
+      
+      // Fallback to cookie-based auth if headers not present
+      const authToken = authHeader || request.cookies.get("jellyfin-auth-token")?.value;
+      
+      if (authToken) {
         console.log("🔑 Found auth token, attempting library scan...");
-        console.log(`🔑 Auth token length: ${authToken.value.length}`);
+        console.log(`🔑 Auth source: ${authHeader ? 'header' : 'cookie'}`);
 
-        // Try to extract server URL from environment or referer
-        let serverUrl =
-          process.env.JELLYFIN_SERVER_URL || "http://localhost:8096";
+        // Try to extract server URL from headers or environment or referer
+        let serverUrl = serverUrlHeader || 
+          process.env.JELLYFIN_SERVER_URL || 
+          "http://localhost:8096";
 
-        if (!process.env.JELLYFIN_SERVER_URL) {
+        if (!serverUrlHeader && !process.env.JELLYFIN_SERVER_URL) {
           // Fallback: try to extract from referer
           const referer = request.headers.get("referer");
           if (referer) {
@@ -80,8 +85,8 @@ export async function POST(request: NextRequest) {
           serverUrl,
           username: process.env.JELLYFIN_ADMIN_USER ?? "",
           password: process.env.JELLYFIN_ADMIN_PASSWORD ?? "",
-        }; // Username/password not needed for API calls
-        jellyfinClient.initializeFromStorage(config, authToken.value, ""); // userId not critical for library scan
+        };
+        jellyfinClient.initializeFromStorage(config, authToken, "");
         console.log("🔧 Initialized Jellyfin client...");
         
         const isAuthenticated = await jellyfinClient.isAuthenticated();
