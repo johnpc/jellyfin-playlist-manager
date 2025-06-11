@@ -3,6 +3,7 @@ import { getUserApi } from "@jellyfin/sdk/lib/utils/api/user-api";
 import { getPlaylistsApi } from "@jellyfin/sdk/lib/utils/api/playlists-api";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api/items-api";
 import { getSearchApi } from "@jellyfin/sdk/lib/utils/api/search-api";
+import { findBestMatch, generateSearchQueries } from "@/lib/utils/search-matching";
 import type {
   JellyfinConfig,
   JellyfinUser,
@@ -10,6 +11,7 @@ import type {
   PlaylistItem,
   SearchResult,
   JellyfinTask,
+  AISuggestion,
 } from "@/types/jellyfin";
 
 class JellyfinClient {
@@ -688,26 +690,46 @@ class JellyfinClient {
     }
 
     try {
-      // Search for the specific song
-      const searchResults = await this.searchItems(`${title} ${artist}`, 20);
+      // Create an AISuggestion object to use with the existing matching logic
+      const suggestion: AISuggestion = {
+        title,
+        artist,
+        // album is optional, so we don't include it here
+      };
 
-      if (searchResults && searchResults.length > 0) {
-        // Find the best match (exact title and artist match preferred)
-        const exactMatch = searchResults.find(
-          (item) =>
-            item.name?.toLowerCase().includes(title.toLowerCase()) &&
-            item.albumArtist?.toLowerCase().includes(artist.toLowerCase()),
-        );
+      console.log(`🔍 Searching for: "${title}" by "${artist}"`);
 
-        const bestMatch = exactMatch || searchResults[0];
-        console.log(
-          `🎵 Found song in library: "${bestMatch.name}" by "${bestMatch.albumArtist}"`,
-        );
-        return bestMatch;
+      // Generate multiple search queries for better coverage (same as PlaylistSuggestions)
+      const searchQueries = generateSearchQueries(suggestion);
+      console.log(`📝 Generated search queries:`, searchQueries);
+
+      let bestMatch: SearchResult | null = null;
+
+      // Try each search query until we find a good match (same logic as PlaylistSuggestions)
+      for (const query of searchQueries) {
+        console.log(`🔎 Trying query: "${query}"`);
+        const searchResults = await this.searchItems(query, 20); // Increased limit for better matching
+        console.log(`📊 Query "${query}" returned ${searchResults.length} results`);
+
+        // Use the same findBestMatch logic from PlaylistSuggestions
+        const match = findBestMatch(suggestion, searchResults);
+
+        if (match) {
+          console.log(`✅ Found match with query "${query}": "${match.name}" by "${match.albumArtist}"`);
+          bestMatch = match;
+          break; // Found a good match, no need to try other queries
+        } else {
+          console.log(`❌ No good match found with query "${query}"`);
+        }
       }
 
-      console.log(`❌ Song "${title}" by "${artist}" not found in library`);
-      return null;
+      if (bestMatch) {
+        console.log(`🎵 Best match found: "${bestMatch.name}" by "${bestMatch.albumArtist}"`);
+        return bestMatch;
+      } else {
+        console.log(`❌ No match found for "${title}" by "${artist}" after trying all search queries`);
+        return null;
+      }
     } catch (error) {
       console.error("Error searching for song in library:", error);
       return null;
