@@ -56,7 +56,8 @@ export async function POST(request: NextRequest) {
       const authToken = request.cookies.get("jellyfin-auth-token");
 
       if (authToken?.value) {
-        console.log("Found auth token, attempting library scan...");
+        console.log("🔑 Found auth token, attempting library scan...");
+        console.log(`🔑 Auth token length: ${authToken.value.length}`);
 
         // Try to extract server URL from environment or referer
         let serverUrl =
@@ -72,6 +73,8 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        console.log(`🌐 Using server URL: ${serverUrl}`);
+
         // Initialize Jellyfin client with stored auth
         const config = {
           serverUrl,
@@ -79,9 +82,10 @@ export async function POST(request: NextRequest) {
           password: process.env.JELLYFIN_ADMIN_PASSWORD ?? "",
         }; // Username/password not needed for API calls
         jellyfinClient.initializeFromStorage(config, authToken.value, ""); // userId not critical for library scan
-        console.log("Initialized Client...", { jellyfinClient });
+        console.log("🔧 Initialized Jellyfin client...");
+        
         const isAuthenticated = await jellyfinClient.isAuthenticated();
-        console.log({ isAuthenticated });
+        console.log(`🔐 Authentication status: ${isAuthenticated}`);
 
         const musicLibraryId = await jellyfinClient.triggerMusicLibraryScan();
         scanTriggered = musicLibraryId !== null;
@@ -126,17 +130,28 @@ export async function POST(request: NextRequest) {
 
             if (songToAdd) {
               console.log(
-                `✅ Found song in library: ${songToAdd.name} by ${songToAdd.albumArtist}`,
+                `✅ Found song in library: ${songToAdd.name} by ${songToAdd.albumArtist || 'Unknown Artist'}`,
               );
 
-              // Add the song to the playlist
-              await jellyfinClient.addItemsToPlaylist(playlistId, [
-                songToAdd.id,
-              ]);
-              addedToPlaylist = true;
-              console.log(
-                `🎵 Successfully added song to playlist ${playlistId}`,
-              );
+              try {
+                // Add the song to the playlist
+                await jellyfinClient.addItemsToPlaylist(playlistId, [
+                  songToAdd.id,
+                ]);
+                addedToPlaylist = true;
+                console.log(
+                  `🎵 Successfully added song to playlist ${playlistId}`,
+                );
+              } catch (playlistAddError) {
+                if (playlistAddError instanceof Error && playlistAddError.message.includes("Permission denied")) {
+                  // Handle authentication error
+                  playlistError = "Authentication error: Please try logging in again";
+                  console.log("🔒 Authentication error when adding to playlist");
+                } else {
+                  playlistError = playlistAddError instanceof Error ? playlistAddError.message : "Unknown error adding to playlist";
+                  console.error("Error adding song to playlist:", playlistAddError);
+                }
+              }
             } else {
               playlistError = "Song not found in library after scan";
               console.log(

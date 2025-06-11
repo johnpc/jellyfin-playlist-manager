@@ -189,17 +189,38 @@ class JellyfinClient {
     }
 
     try {
-      const playlistsApi = getPlaylistsApi(this.api);
+      console.log(`🎵 Adding ${itemIds.length} items to playlist ${playlistId}`);
+      console.log(`📝 Items to add:`, itemIds);
 
-      // Add items one by one since the SDK method might expect single items
-      for (const itemId of itemIds) {
-        await playlistsApi.addItemToPlaylist({
-          playlistId,
-          ids: [itemId],
-        });
-      }
+      // Use direct API call with explicit authentication headers
+      const response = await this.api.axiosInstance.post(
+        `/Playlists/${playlistId}/Items`,
+        {},
+        {
+          baseURL: this.api.basePath,
+          headers: {
+            Authorization: `MediaBrowser Token="${this.accessToken}"`,
+            "X-Emby-Token": this.accessToken,
+          },
+          params: {
+            ids: itemIds.join(","),
+          },
+        }
+      );
+
+      console.log(`✅ Successfully added items to playlist. Status: ${response.status}`);
     } catch (error) {
       console.error("Error adding items to playlist:", error);
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { status?: number; data?: unknown } };
+        console.error(`Response status: ${axiosError.response?.status}`);
+        console.error(`Response data:`, axiosError.response?.data);
+
+        // Check specific error cases
+        if (axiosError.response?.status === 403) {
+          throw new Error("Permission denied: Your authentication token might have expired. Please try logging in again.");
+        }
+      }
       throw new Error("Failed to add items to playlist");
     }
   }
