@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { jellyfinClient } from "@/lib/api/jellyfin";
 import { useAuthStore } from "@/lib/store/auth";
@@ -30,6 +30,7 @@ export default function PlaylistSuggestions({
   const [isAdding, setIsAdding] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState<string | null>(null);
   const { accessToken, config } = useAuthStore();
+  const queryClient = useQueryClient();
 
   // Generate AI-powered suggestions based on playlist content
   const {
@@ -172,11 +173,26 @@ export default function PlaylistSuggestions({
 
       if (result.addedToPlaylist) {
         console.log("Song automatically added to playlist!");
+        
+        // Refresh the playlist to show the new song
+        console.log("🔄 Refreshing playlist data...");
+        await Promise.all([
+          queryClient.invalidateQueries({ 
+            queryKey: ["playlist", playlistId] 
+          }),
+          queryClient.invalidateQueries({ 
+            queryKey: ["playlist-details", playlistId] 
+          }),
+          // Also refresh the suggestions to update availability
+          queryClient.invalidateQueries({ 
+            queryKey: ["ai-suggestions", playlistItems.map((item) => item.id).join(",")] 
+          })
+        ]);
+        
+        console.log("✅ Playlist data refreshed!");
         alert(
           `✅ Success! "${suggestion.title}" was downloaded and added to your playlist automatically!`,
         );
-        // Refresh the playlist to show the new song
-        // You might want to trigger a playlist refresh here
       } else if (result.playlistError) {
         console.log(
           "Download succeeded but failed to add to playlist:",
@@ -192,8 +208,7 @@ export default function PlaylistSuggestions({
       // Show success state briefly
       setTimeout(() => {
         setIsDownloading(null);
-        // Optionally refresh suggestions to check if the song is now available
-        // You might want to invalidate the query here
+        // Note: Query invalidation already happened above for successful downloads
       }, 2000);
     } catch (error) {
       console.error("Download failed:", error);
