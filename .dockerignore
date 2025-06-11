@@ -1,0 +1,68 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Next.js
+.next/
+out/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Temporary folders
+tmp/
+temp/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# Local downloads (will be mounted as volume)
+downloads/
+
+# Cookies file (will be mounted or provided via environment)
+cookies.txt
+
+# Planning directory
+planning/
