@@ -3,7 +3,7 @@ import { generatePlaylistSuggestions } from "@/lib/api/bedrock";
 
 export async function POST(request: NextRequest) {
   try {
-    const { playlistItems } = await request.json();
+    const { playlistItems, radioMode = false, count } = await request.json();
 
     if (!playlistItems || !Array.isArray(playlistItems)) {
       return NextResponse.json(
@@ -17,7 +17,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate AI suggestions
-    const suggestions = await generatePlaylistSuggestions(playlistItems);
+    const suggestions = await generatePlaylistSuggestions(
+      playlistItems, 
+      radioMode, 
+      count
+    );
 
     return NextResponse.json({ suggestions });
   } catch (error) {

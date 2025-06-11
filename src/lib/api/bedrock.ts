@@ -21,6 +21,8 @@ export interface AISuggestion {
 
 export async function generatePlaylistSuggestions(
   playlistItems: Array<{ name: string; albumArtist?: string; album?: string }>,
+  radioMode: boolean = false,
+  count?: number,
 ): Promise<AISuggestion[]> {
   // Validate environment variables
   if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
@@ -28,6 +30,9 @@ export async function generatePlaylistSuggestions(
     return [];
   }
 
+  // Determine how many suggestions to generate
+  const suggestionCount = count || (radioMode ? 25 : 5);
+  
   // Create a prompt based on the playlist items
   const playlistDescription = playlistItems
     .slice(0, 10) // Limit to first 10 items to avoid token limits
@@ -37,9 +42,36 @@ export async function generatePlaylistSuggestions(
     )
     .join(", ");
 
-  const prompt = `Based on this music playlist: ${playlistDescription}
+  const prompt = radioMode 
+    ? `I want to create a radio station based on this song/artist: ${playlistDescription}
 
-Please suggest 5 similar songs that would fit well with this playlist. Consider the musical style, genre, mood, and era of the existing songs.
+Please suggest ${suggestionCount} songs that would create a great radio playlist in this style. Think like a radio DJ curating a cohesive listening experience. Include:
+- Songs by the same artist
+- Songs by similar artists in the same genre
+- Songs from the same era or movement
+- Songs with similar energy, mood, and musical characteristics
+- Both popular hits and deeper cuts that fit the vibe
+
+Respond with a JSON array of objects, each containing:
+- title: The song title
+- artist: The artist name
+- album: The album name (if known)
+- reason: A brief explanation of why this song fits the radio station
+
+Example format:
+[
+  {
+    "title": "Song Name",
+    "artist": "Artist Name", 
+    "album": "Album Name",
+    "reason": "Same artist, similar energy and style"
+  }
+]
+
+Only return the JSON array, no other text.`
+    : `Based on this music playlist: ${playlistDescription}
+
+Please suggest ${suggestionCount} similar songs that would fit well with this playlist. Consider the musical style, genre, mood, and era of the existing songs.
 
 Respond with a JSON array of objects, each containing:
 - title: The song title
@@ -66,7 +98,7 @@ Only return the JSON array, no other text.`;
       accept: "application/json",
       body: JSON.stringify({
         anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 1000,
+        max_tokens: radioMode ? 3000 : 1000, // More tokens for radio mode
         messages: [
           {
             role: "user",
@@ -85,7 +117,7 @@ Only return the JSON array, no other text.`;
     // Try to parse the JSON response
     try {
       const suggestions = JSON.parse(aiResponse);
-      return Array.isArray(suggestions) ? suggestions.slice(0, 5) : [];
+      return Array.isArray(suggestions) ? suggestions.slice(0, suggestionCount) : [];
     } catch {
       console.error("Failed to parse AI response as JSON:", aiResponse);
       // Try to extract JSON from the response if it's wrapped in other text
@@ -93,7 +125,7 @@ Only return the JSON array, no other text.`;
       if (jsonMatch) {
         try {
           const suggestions = JSON.parse(jsonMatch[0]);
-          return Array.isArray(suggestions) ? suggestions.slice(0, 5) : [];
+          return Array.isArray(suggestions) ? suggestions.slice(0, suggestionCount) : [];
         } catch {
           console.error("Failed to parse extracted JSON:", jsonMatch[0]);
         }
