@@ -192,23 +192,74 @@ class JellyfinClient {
       console.log(`🎵 Adding ${itemIds.length} items to playlist ${playlistId}`);
       console.log(`📝 Items to add:`, itemIds);
 
-      // Use direct API call with explicit authentication headers
-      const response = await this.api.axiosInstance.post(
-        `/Playlists/${playlistId}/Items`,
-        {},
-        {
-          baseURL: this.api.basePath,
-          headers: {
-            Authorization: `MediaBrowser Token="${this.accessToken}"`,
-            "X-Emby-Token": this.accessToken,
-          },
-          params: {
-            ids: itemIds.join(","),
-          },
+      // Try the SDK method first (which was working in the UI)
+      try {
+        const playlistsApi = getPlaylistsApi(this.api);
+        
+        // Add items one by one since the SDK method might expect single items
+        for (const itemId of itemIds) {
+          await playlistsApi.addItemToPlaylist({
+            playlistId,
+            ids: [itemId],
+          });
         }
-      );
+        console.log(`✅ Successfully added items to playlist using SDK method`);
+        return;
+      } catch (sdkError) {
+        console.log(`⚠️  SDK method failed, trying direct API call...`);
+        console.error("SDK error:", sdkError);
+      }
 
-      console.log(`✅ Successfully added items to playlist. Status: ${response.status}`);
+      // Fallback to direct API call with different parameter formats
+      const apiCallAttempts = [
+        // Try with 'ids' parameter
+        {
+          params: { ids: itemIds.join(",") },
+          description: "ids parameter"
+        },
+        // Try with 'entryIds' parameter (like removeItemFromPlaylist)
+        {
+          params: { entryIds: itemIds.join(",") },
+          description: "entryIds parameter"
+        },
+        // Try with individual 'id' parameters
+        {
+          params: Object.fromEntries(itemIds.map((id, index) => [`id${index}`, id])),
+          description: "individual id parameters"
+        }
+      ];
+
+      for (const attempt of apiCallAttempts) {
+        try {
+          console.log(`🔄 Trying direct API call with ${attempt.description}...`);
+          
+          const response = await this.api.axiosInstance.post(
+            `/Playlists/${playlistId}/Items`,
+            {},
+            {
+              baseURL: this.api.basePath,
+              headers: {
+                Authorization: `MediaBrowser Token="${this.accessToken}"`,
+                "X-Emby-Token": this.accessToken,
+              },
+              params: attempt.params,
+            }
+          );
+
+          console.log(`✅ Successfully added items to playlist using ${attempt.description}. Status: ${response.status}`);
+          return;
+        } catch (apiError) {
+          console.log(`❌ Failed with ${attempt.description}`);
+          if (apiError && typeof apiError === 'object' && 'response' in apiError) {
+            const axiosError = apiError as { response?: { status?: number; data?: unknown } };
+            console.log(`   Status: ${axiosError.response?.status}, Data:`, axiosError.response?.data);
+          }
+        }
+      }
+
+      // If all attempts failed, throw the original error
+      throw new Error("All API call attempts failed");
+
     } catch (error) {
       console.error("Error adding items to playlist:", error);
       if (error && typeof error === 'object' && 'response' in error) {
