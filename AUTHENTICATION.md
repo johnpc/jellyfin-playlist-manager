@@ -11,6 +11,7 @@ The application implements automatic token refresh to handle expired authenticat
 ### 1. Initial Authentication
 
 When users log in:
+
 1. Credentials (server URL, username, password) are stored in `localStorage`
 2. Authentication token is stored as an HTTP-only cookie (`jellyfin-auth-token`)
 3. User and token information is stored in Zustand state for the session
@@ -43,17 +44,20 @@ When any API call receives a 401 or 403 error:
 ### Core Components
 
 #### `AuthClient` (`src/lib/api/auth-client.ts`)
+
 - Handles token refresh logic
 - Manages concurrent refresh attempts
 - Detects authentication errors
 - Provides `withTokenRefresh()` wrapper
 
 #### `JellyfinClient` (`src/lib/api/jellyfin.ts`)
+
 - All API methods wrapped with `authClient.withTokenRefresh()`
 - Automatically handles token refresh on auth errors
 - Updates internal token when refresh occurs
 
 #### `AuthStore` (`src/lib/store/auth.ts`)
+
 - Manages authentication state
 - Persists user and token information
 - Handles login/logout operations
@@ -61,6 +65,7 @@ When any API call receives a 401 or 403 error:
 ### Error Detection
 
 The system detects authentication errors by checking for:
+
 - HTTP status codes: 401 (Unauthorized) or 403 (Forbidden)
 - Error messages containing: "unauthorized", "forbidden", "authentication", "token"
 
@@ -105,7 +110,7 @@ AuthTestUtils.logAuthState();
 ### Manual Testing Steps
 
 1. **Setup**: Log into the app normally
-2. **Simulate Expiration**: 
+2. **Simulate Expiration**:
    - Open browser dev tools
    - Go to Application > Cookies
    - Modify the `jellyfin-auth-token` value to make it invalid
@@ -124,25 +129,30 @@ AuthTestUtils.logAuthState();
 ## Error Scenarios
 
 ### Successful Refresh
+
 - Token expires → Automatic refresh → Operation continues seamlessly
 - User remains logged in and unaware of the refresh
 
 ### Failed Refresh
+
 - Stored credentials are invalid → Refresh fails → User logged out → Redirect to login
 - No stored credentials → Immediate logout and redirect
 
 ### Network Issues
+
 - Temporary network failure during refresh → Error thrown to user
 - User can retry the operation manually
 
 ## Security Considerations
 
 ### Credential Storage
+
 - Credentials stored in `localStorage` (not ideal for production)
 - Consider using more secure storage methods for production deployment
 - Tokens stored as HTTP-only cookies for better security
 
 ### Token Lifecycle
+
 - Tokens automatically refresh before expiration when possible
 - Failed refresh immediately clears all authentication state
 - No indefinite retry attempts to prevent infinite loops
@@ -150,14 +160,16 @@ AuthTestUtils.logAuthState();
 ## Configuration
 
 ### Token Expiration
+
 - Jellyfin server configuration determines token lifetime
 - No client-side configuration needed for refresh mechanism
 
 ### Storage Keys
+
 ```typescript
 const STORAGE_KEYS = {
   SERVER_URL: "jellyfin-server-url",
-  USERNAME: "jellyfin-username", 
+  USERNAME: "jellyfin-username",
   PASSWORD: "jellyfin-password",
 } as const;
 ```
@@ -167,10 +179,12 @@ const STORAGE_KEYS = {
 ### Common Issues
 
 1. **Refresh Loop**: If tokens keep expiring immediately
+
    - Check Jellyfin server time synchronization
    - Verify server configuration
 
 2. **Credentials Not Found**: If refresh fails with "No stored credentials"
+
    - User needs to log in again
    - Check localStorage for credential keys
 
@@ -181,14 +195,16 @@ const STORAGE_KEYS = {
 ### Debug Information
 
 Enable debug logging by checking browser console for:
+
 - `🔄` Token refresh attempts
-- `✅` Successful operations  
+- `✅` Successful operations
 - `❌` Failed operations
 - `🧪` Test utility messages
 
 ## Future Improvements
 
 ### Potential Enhancements
+
 - Proactive token refresh before expiration
 - More secure credential storage (encrypted)
 - Retry with exponential backoff
@@ -196,6 +212,7 @@ Enable debug logging by checking browser console for:
 - Background refresh for long-running operations
 
 ### Security Improvements
+
 - Implement secure token storage
 - Add token rotation
 - Implement refresh token pattern

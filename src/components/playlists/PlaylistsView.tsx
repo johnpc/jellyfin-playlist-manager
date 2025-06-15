@@ -46,7 +46,7 @@ export default function PlaylistsView() {
       console.log(`Creating playlist: "${newPlaylistName}"`);
       await jellyfinClient.createPlaylist(newPlaylistName);
       console.log(`✅ Playlist "${newPlaylistName}" created successfully`);
-      
+
       setNewPlaylistName("");
       setIsCreating(false);
       refetch();

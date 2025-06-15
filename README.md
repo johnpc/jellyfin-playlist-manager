@@ -92,6 +92,7 @@ To enable AI-powered playlist suggestions and metadata parsing, you need to:
 3. **Get Credentials**: Generate access keys for the IAM user and add them to your `.env.local` file
 
 **AI Features Enabled:**
+
 - **Playlist Suggestions**: Analyzes your current playlist and suggests similar songs
 - **Metadata Parsing**: When MusicBrainz doesn't have song data, AI cleans up and parses song titles, artist names, and can infer album/genre information
 

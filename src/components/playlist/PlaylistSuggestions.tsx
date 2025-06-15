@@ -173,22 +173,25 @@ export default function PlaylistSuggestions({
 
       if (result.addedToPlaylist) {
         console.log("Song automatically added to playlist!");
-        
+
         // Refresh the playlist to show the new song
         console.log("🔄 Refreshing playlist data...");
         await Promise.all([
-          queryClient.invalidateQueries({ 
-            queryKey: ["playlist", playlistId] 
+          queryClient.invalidateQueries({
+            queryKey: ["playlist", playlistId],
           }),
-          queryClient.invalidateQueries({ 
-            queryKey: ["playlist-details", playlistId] 
+          queryClient.invalidateQueries({
+            queryKey: ["playlist-details", playlistId],
           }),
           // Also refresh the suggestions to update availability
-          queryClient.invalidateQueries({ 
-            queryKey: ["ai-suggestions", playlistItems.map((item) => item.id).join(",")] 
-          })
+          queryClient.invalidateQueries({
+            queryKey: [
+              "ai-suggestions",
+              playlistItems.map((item) => item.id).join(","),
+            ],
+          }),
         ]);
-        
+
         console.log("✅ Playlist data refreshed!");
         alert(
           `✅ Success! "${suggestion.title}" was downloaded and added to your playlist automatically!`,

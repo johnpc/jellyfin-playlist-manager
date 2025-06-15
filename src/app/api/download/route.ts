@@ -85,8 +85,8 @@ export async function POST(request: NextRequest) {
           console.log("✅ Library scan completed successfully");
         }
 
-        console.log(`Waiting 30 seconds for things to settle...`)
-        const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+        console.log(`Waiting 30 seconds for things to settle...`);
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
         await sleep(30000);
 
         try {
@@ -96,50 +96,55 @@ export async function POST(request: NextRequest) {
 
           // Search for the song in the library using admin auth
           const songToAdd = await adminAuthClient.withAdminAuth(async () => {
-            return await jellyfinClient.findSongInLibrary(
-              title,
-              artist,
-            );
+            return await jellyfinClient.findSongInLibrary(title, artist);
           });
 
           if (songToAdd) {
             console.log(
-              `✅ Found song in library: ${songToAdd.name} by ${songToAdd.albumArtist || 'Unknown Artist'}`,
+              `✅ Found song in library: ${songToAdd.name} by ${songToAdd.albumArtist || "Unknown Artist"}`,
             );
 
-          try {
-            // Add the song to the playlist
-            await jellyfinClient.addItemsToPlaylist(playlistId, [
-              songToAdd.id,
-            ]);
-            addedToPlaylist = true;
-            console.log(
-              `🎵 Successfully added song to playlist ${playlistId}`,
-            );
-          } catch (playlistAddError) {
-            if (playlistAddError instanceof Error && playlistAddError.message.includes("Permission denied")) {
-              // Handle authentication error
-              playlistError = "Authentication error: Please try logging in again";
-              console.log("🔒 Authentication error when adding to playlist");
-            } else {
-              playlistError = playlistAddError instanceof Error ? playlistAddError.message : "Unknown error adding to playlist";
-              console.error("Error adding song to playlist:", playlistAddError);
+            try {
+              // Add the song to the playlist
+              await jellyfinClient.addItemsToPlaylist(playlistId, [
+                songToAdd.id,
+              ]);
+              addedToPlaylist = true;
+              console.log(
+                `🎵 Successfully added song to playlist ${playlistId}`,
+              );
+            } catch (playlistAddError) {
+              if (
+                playlistAddError instanceof Error &&
+                playlistAddError.message.includes("Permission denied")
+              ) {
+                // Handle authentication error
+                playlistError =
+                  "Authentication error: Please try logging in again";
+                console.log("🔒 Authentication error when adding to playlist");
+              } else {
+                playlistError =
+                  playlistAddError instanceof Error
+                    ? playlistAddError.message
+                    : "Unknown error adding to playlist";
+                console.error(
+                  "Error adding song to playlist:",
+                  playlistAddError,
+                );
+              }
             }
+          } else {
+            playlistError = "Song not found in library after scan";
+            console.log("❌ Song not found in library after waiting for scan");
           }
-        } else {
-          playlistError = "Song not found in library after scan";
-          console.log(
-            "❌ Song not found in library after waiting for scan",
-          );
+        } catch (error) {
+          playlistError =
+            error instanceof Error
+              ? error.message
+              : "Unknown error adding to playlist";
+          console.error("Error adding song to playlist:", error);
         }
-      } catch (error) {
-        playlistError =
-          error instanceof Error
-            ? error.message
-            : "Unknown error adding to playlist";
-        console.error("Error adding song to playlist:", error);
       }
-    }
     } catch (error) {
       scanError = error instanceof Error ? error.message : "Unknown error";
       console.log("Library scan failed:", scanError);

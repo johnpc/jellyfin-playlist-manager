@@ -11,7 +11,7 @@ export class AuthTestUtils {
    */
   static simulateTokenExpiration(): void {
     if (typeof window === "undefined") return;
-    
+
     const currentToken = getCookie("jellyfin-auth-token");
     if (currentToken) {
       // Corrupt the token to simulate expiration
@@ -27,7 +27,7 @@ export class AuthTestUtils {
    */
   static clearToken(): void {
     if (typeof window === "undefined") return;
-    
+
     deleteCookie("jellyfin-auth-token");
     console.log("🧪 Token cleared to simulate complete token loss");
   }
@@ -37,14 +37,14 @@ export class AuthTestUtils {
    */
   static hasStoredCredentials(): boolean {
     if (typeof window === "undefined") return false;
-    
+
     const serverUrl = localStorage.getItem("jellyfin-server-url");
     const username = localStorage.getItem("jellyfin-username");
     const password = localStorage.getItem("jellyfin-password");
-    
+
     const hasCredentials = !!(serverUrl && username && password);
     console.log("🧪 Stored credentials available:", hasCredentials);
-    
+
     return hasCredentials;
   }
 
@@ -55,21 +55,21 @@ export class AuthTestUtils {
     if (typeof window === "undefined") {
       return { restore: () => {} };
     }
-    
+
     const originalPassword = localStorage.getItem("jellyfin-password");
-    
+
     if (originalPassword) {
       localStorage.setItem("jellyfin-password", originalPassword + "_INVALID");
       console.log("🧪 Stored credentials corrupted");
     }
-    
+
     return {
       restore: () => {
         if (originalPassword) {
           localStorage.setItem("jellyfin-password", originalPassword);
           console.log("🧪 Stored credentials restored");
         }
-      }
+      },
     };
   }
 
@@ -78,12 +78,12 @@ export class AuthTestUtils {
    */
   static logAuthState(): void {
     if (typeof window === "undefined") return;
-    
+
     const token = getCookie("jellyfin-auth-token");
     const serverUrl = localStorage.getItem("jellyfin-server-url");
     const username = localStorage.getItem("jellyfin-username");
     const hasPassword = !!localStorage.getItem("jellyfin-password");
-    
+
     console.log("🧪 Current Auth State:", {
       hasToken: !!token,
       tokenLength: token?.length || 0,

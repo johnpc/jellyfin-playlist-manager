@@ -3,7 +3,10 @@ import { getUserApi } from "@jellyfin/sdk/lib/utils/api/user-api";
 import { getPlaylistsApi } from "@jellyfin/sdk/lib/utils/api/playlists-api";
 import { getItemsApi } from "@jellyfin/sdk/lib/utils/api/items-api";
 import { getSearchApi } from "@jellyfin/sdk/lib/utils/api/search-api";
-import { findBestMatch, generateSearchQueries } from "@/lib/utils/search-matching";
+import {
+  findBestMatch,
+  generateSearchQueries,
+} from "@/lib/utils/search-matching";
 import type {
   JellyfinConfig,
   JellyfinUser,
@@ -80,7 +83,7 @@ class JellyfinClient {
   async isAuthenticated(): Promise<boolean> {
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       if (!this.api) {
         return false;
@@ -108,7 +111,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       const itemsApi = getItemsApi(this.api!);
       const response = await itemsApi.getItems({
@@ -139,7 +142,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       const itemsApi = getItemsApi(this.api!);
       const response = await itemsApi.getItems({
@@ -176,7 +179,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       const playlistsApi = getPlaylistsApi(this.api!);
       const response = await playlistsApi.createPlaylist({
@@ -200,15 +203,17 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
-      console.log(`🎵 Adding ${itemIds.length} items to playlist ${playlistId}`);
+      console.log(
+        `🎵 Adding ${itemIds.length} items to playlist ${playlistId}`,
+      );
       console.log(`📝 Items to add:`, itemIds);
 
       // Try the SDK method first (which was working in the UI)
       try {
         const playlistsApi = getPlaylistsApi(this.api!);
-        
+
         // Add items one by one since the SDK method might expect single items
         for (const itemId of itemIds) {
           await playlistsApi.addItemToPlaylist({
@@ -228,24 +233,28 @@ class JellyfinClient {
         // Try with 'ids' parameter
         {
           params: { ids: itemIds.join(",") },
-          description: "ids parameter"
+          description: "ids parameter",
         },
         // Try with 'entryIds' parameter (like removeItemFromPlaylist)
         {
           params: { entryIds: itemIds.join(",") },
-          description: "entryIds parameter"
+          description: "entryIds parameter",
         },
         // Try with individual 'id' parameters
         {
-          params: Object.fromEntries(itemIds.map((id, index) => [`id${index}`, id])),
-          description: "individual id parameters"
-        }
+          params: Object.fromEntries(
+            itemIds.map((id, index) => [`id${index}`, id]),
+          ),
+          description: "individual id parameters",
+        },
       ];
 
       for (const attempt of apiCallAttempts) {
         try {
-          console.log(`🔄 Trying direct API call with ${attempt.description}...`);
-          
+          console.log(
+            `🔄 Trying direct API call with ${attempt.description}...`,
+          );
+
           const response = await this.api!.axiosInstance.post(
             `/Playlists/${playlistId}/Items`,
             {},
@@ -256,16 +265,27 @@ class JellyfinClient {
                 "X-Emby-Token": this.accessToken,
               },
               params: attempt.params,
-            }
+            },
           );
 
-          console.log(`✅ Successfully added items to playlist using ${attempt.description}. Status: ${response.status}`);
+          console.log(
+            `✅ Successfully added items to playlist using ${attempt.description}. Status: ${response.status}`,
+          );
           return;
         } catch (apiError) {
           console.log(`❌ Failed with ${attempt.description}`);
-          if (apiError && typeof apiError === 'object' && 'response' in apiError) {
-            const axiosError = apiError as { response?: { status?: number; data?: unknown } };
-            console.log(`   Status: ${axiosError.response?.status}, Data:`, axiosError.response?.data);
+          if (
+            apiError &&
+            typeof apiError === "object" &&
+            "response" in apiError
+          ) {
+            const axiosError = apiError as {
+              response?: { status?: number; data?: unknown };
+            };
+            console.log(
+              `   Status: ${axiosError.response?.status}, Data:`,
+              axiosError.response?.data,
+            );
           }
         }
       }
@@ -285,7 +305,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       // Use direct API call with explicit authentication headers
       await this.api!.axiosInstance.delete(`/Playlists/${playlistId}/Items`, {
@@ -308,7 +328,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       const itemsApi = getItemsApi(this.api!);
       const response = await itemsApi.getItems({
@@ -344,7 +364,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       // Delete the old playlist and create a new one with the same items
       // This is a workaround since Jellyfin doesn't have a direct rename API
@@ -380,7 +400,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       // Use direct API call since moveItem might not be available in the SDK
       await this.api!.axiosInstance.post(
@@ -404,7 +424,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       // Use the axios instance with proper authentication headers
       await this.api!.axiosInstance.delete(`/Items/${playlistId}`, {
@@ -427,7 +447,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       const searchApi = getSearchApi(this.api!);
 
@@ -521,7 +541,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       const itemsApi = getItemsApi(this.api!);
       const response = await itemsApi.getItems({
@@ -529,9 +549,13 @@ class JellyfinClient {
         includeItemTypes: ["CollectionFolder"],
       });
 
-      console.log(`🔍 Found ${response.data.Items?.length || 0} collection folders:`);
-      response.data.Items?.forEach(item => {
-        console.log(`  • ${item.Name} (Type: ${item.CollectionType || 'unknown'}, ID: ${item.Id})`);
+      console.log(
+        `🔍 Found ${response.data.Items?.length || 0} collection folders:`,
+      );
+      response.data.Items?.forEach((item) => {
+        console.log(
+          `  • ${item.Name} (Type: ${item.CollectionType || "unknown"}, ID: ${item.Id})`,
+        );
       });
 
       // Find the music library
@@ -540,7 +564,9 @@ class JellyfinClient {
       );
 
       if (musicLibrary) {
-        console.log(`🎵 Found music library: ${musicLibrary.Name} (ID: ${musicLibrary.Id})`);
+        console.log(
+          `🎵 Found music library: ${musicLibrary.Name} (ID: ${musicLibrary.Id})`,
+        );
         return musicLibrary.Id || null;
       } else {
         console.log("❌ No music library found in collection folders");
@@ -556,7 +582,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       const musicLibraryId = await this.getMusicLibraryId();
       if (!musicLibraryId) {
@@ -569,7 +595,7 @@ class JellyfinClient {
       // First, let's check what tasks are running before we trigger the scan
       const tasksBefore = await this.getActiveTasks();
       console.log(`📋 Active tasks before scan: ${tasksBefore.length}`);
-      tasksBefore.forEach(task => {
+      tasksBefore.forEach((task) => {
         console.log(`  • ${task.Name} (${task.State})`);
       });
 
@@ -597,19 +623,21 @@ class JellyfinClient {
       console.log(`📊 Response data:`, response.data);
 
       // Wait a moment and check if any new tasks appeared
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       const tasksAfter = await this.getActiveTasks();
       console.log(`📋 Active tasks after scan: ${tasksAfter.length}`);
-      tasksAfter.forEach(task => {
-        console.log(`  • ${task.Name} (${task.State}) - ${task.CurrentProgressPercentage || 0}%`);
+      tasksAfter.forEach((task) => {
+        console.log(
+          `  • ${task.Name} (${task.State}) - ${task.CurrentProgressPercentage || 0}%`,
+        );
       });
 
       // Check if we have any new scan tasks
-      const newScanTasks = tasksAfter.filter(task => {
+      const newScanTasks = tasksAfter.filter((task) => {
         const name = task.Name?.toLowerCase() || "";
         const key = task.Key?.toLowerCase() || "";
         return (
-          name.includes("scan") || 
+          name.includes("scan") ||
           name.includes("library") ||
           name.includes("refresh") ||
           key.includes("refresh") ||
@@ -618,9 +646,13 @@ class JellyfinClient {
       });
 
       if (newScanTasks.length === 0) {
-        console.log("⚠️  No scan tasks found after triggering scan - this might indicate the scan request didn't work");
+        console.log(
+          "⚠️  No scan tasks found after triggering scan - this might indicate the scan request didn't work",
+        );
       } else {
-        console.log(`✅ Found ${newScanTasks.length} scan task(s) after triggering scan`);
+        console.log(
+          `✅ Found ${newScanTasks.length} scan task(s) after triggering scan`,
+        );
       }
 
       return musicLibraryId;
@@ -634,7 +666,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       const response = await this.api!.axiosInstance.get("/ScheduledTasks", {
         baseURL: this.api!.basePath,
@@ -655,7 +687,7 @@ class JellyfinClient {
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       const endpoint = taskId
         ? `/ScheduledTasks/${taskId}`
@@ -774,13 +806,17 @@ class JellyfinClient {
       for (const query of searchQueries) {
         console.log(`🔎 Trying query: "${query}"`);
         const searchResults = await this.searchItems(query, 20); // Increased limit for better matching
-        console.log(`📊 Query "${query}" returned ${searchResults.length} results`);
+        console.log(
+          `📊 Query "${query}" returned ${searchResults.length} results`,
+        );
 
         // Use the same findBestMatch logic from PlaylistSuggestions
         const match = findBestMatch(suggestion, searchResults);
 
         if (match) {
-          console.log(`✅ Found match with query "${query}": "${match.name}" by "${match.albumArtist}"`);
+          console.log(
+            `✅ Found match with query "${query}": "${match.name}" by "${match.albumArtist}"`,
+          );
           bestMatch = match;
           break; // Found a good match, no need to try other queries
         } else {
@@ -789,10 +825,14 @@ class JellyfinClient {
       }
 
       if (bestMatch) {
-        console.log(`🎵 Best match found: "${bestMatch.name}" by "${bestMatch.albumArtist}"`);
+        console.log(
+          `🎵 Best match found: "${bestMatch.name}" by "${bestMatch.albumArtist}"`,
+        );
         return bestMatch;
       } else {
-        console.log(`❌ No match found for "${title}" by "${artist}" after trying all search queries`);
+        console.log(
+          `❌ No match found for "${title}" by "${artist}" after trying all search queries`,
+        );
         return null;
       }
     } catch (error) {
@@ -804,21 +844,21 @@ class JellyfinClient {
   async triggerLibraryScan(): Promise<boolean> {
     // Keep the old method for backward compatibility, but also as a fallback
     const musicLibraryResult = await this.triggerMusicLibraryScan();
-    
+
     if (musicLibraryResult) {
       return true;
     }
-    
+
     // Fallback to full library refresh if targeted scan failed
     console.log("🔄 Falling back to full library refresh...");
-    
+
     if (!this.api || !this.accessToken) {
       throw new Error("Not authenticated");
     }
 
     // Import authClient here to avoid circular dependency
     const { authClient } = await import("./auth-client");
-    
+
     return authClient.withTokenRefresh(async () => {
       await this.api!.axiosInstance.post(
         "/Library/Refresh",

@@ -18,9 +18,9 @@ export async function POST(request: NextRequest) {
 
     // Generate AI suggestions
     const suggestions = await generatePlaylistSuggestions(
-      playlistItems, 
-      radioMode, 
-      count
+      playlistItems,
+      radioMode,
+      count,
     );
 
     return NextResponse.json({ suggestions });

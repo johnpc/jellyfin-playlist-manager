@@ -1,6 +1,6 @@
 /**
  * Test script to verify automatic token refresh functionality
- * 
+ *
  * This script simulates what happens when a token expires:
  * 1. It makes an API call that should succeed
  * 2. It simulates a token expiration by corrupting the token

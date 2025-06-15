@@ -75,7 +75,7 @@ export default function LoginForm() {
 
     try {
       await login(data);
-      
+
       // Login successful - redirect to home page
       console.log("✅ Login successful, redirecting to home page");
       router.push("/");

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jellyfinClient } from "@/lib/api/jellyfin";
-import { adminAuthClient } from "@/lib/api/admin-auth";
 import { downloadSong, verifyYtDlp } from "@/lib/api/downloader";
 import { generatePlaylistSuggestions } from "@/lib/api/bedrock";
 
@@ -20,7 +19,8 @@ export async function POST(request: NextRequest) {
     // Get auth details from request headers
     const authHeader = request.headers.get("x-jellyfin-auth");
     const serverUrlHeader = request.headers.get("x-jellyfin-server");
-    const authToken = authHeader || request.cookies.get("jellyfin-auth-token")?.value;
+    const authToken =
+      authHeader || request.cookies.get("jellyfin-auth-token")?.value;
 
     if (!authToken) {
       return NextResponse.json(
@@ -30,7 +30,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Initialize Jellyfin client
-    let serverUrl = serverUrlHeader ||
+    let serverUrl =
+      serverUrlHeader ||
       process.env.JELLYFIN_SERVER_URL ||
       "http://localhost:8096";
 
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     const aiSuggestions = await generatePlaylistSuggestions(
       [{ name: songPrompt, albumArtist: "", album: "" }],
       true, // radioMode
-      25   // count
+      25, // count
     );
 
     console.log(`🎵 Generated ${aiSuggestions.length} AI suggestions`);
@@ -89,7 +90,9 @@ export async function POST(request: NextRequest) {
     const ytDlpAvailable = downloadDir ? await verifyYtDlp() : false;
 
     if (!downloadDir) {
-      console.log("⚠️  MUSIC_DOWNLOAD_DIR not configured - downloads will be skipped");
+      console.log(
+        "⚠️  MUSIC_DOWNLOAD_DIR not configured - downloads will be skipped",
+      );
     }
     if (downloadDir && !ytDlpAvailable) {
       console.log("⚠️  yt-dlp not available - downloads will be skipped");
@@ -99,7 +102,10 @@ export async function POST(request: NextRequest) {
     console.log("\n🔍 Phase 1: Searching library for existing songs...");
     const searchPromises = aiSuggestions.map(async (suggestion, index) => {
       try {
-        const existingSong = await jellyfinClient.findSongInLibrary(suggestion.title, suggestion.artist);
+        const existingSong = await jellyfinClient.findSongInLibrary(
+          suggestion.title,
+          suggestion.artist,
+        );
         return {
           index,
           suggestion,
@@ -107,12 +113,12 @@ export async function POST(request: NextRequest) {
           error: null,
         };
       } catch (error) {
-        console.log({error});
+        console.log({ error });
         return {
           index,
           suggestion,
           existingSong: null,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error.message : "Unknown error",
         };
       }
     });
@@ -120,16 +126,22 @@ export async function POST(request: NextRequest) {
     const searchResults = await Promise.all(searchPromises);
 
     // Separate found songs from songs that need downloading
-    const foundSongs = searchResults.filter(result => result.existingSong && !result.error);
-    const songsToDownload = searchResults.filter(result => !result.existingSong && !result.error);
-    const searchErrors = searchResults.filter(result => result.error);
+    const foundSongs = searchResults.filter(
+      (result) => result.existingSong && !result.error,
+    );
+    const songsToDownload = searchResults.filter(
+      (result) => !result.existingSong && !result.error,
+    );
+    const searchErrors = searchResults.filter((result) => result.error);
 
     console.log(`✅ Found ${foundSongs.length} songs in library`);
     console.log(`⬇️  Need to download ${songsToDownload.length} songs`);
     if (searchErrors.length > 0) {
       console.log(`❌ ${searchErrors.length} search errors`);
-      searchErrors.forEach(result => {
-        results.errors.push(`Search error for "${result.suggestion.title}": ${result.error}`);
+      searchErrors.forEach((result) => {
+        results.errors.push(
+          `Search error for "${result.suggestion.title}": ${result.error}`,
+        );
       });
     }
 
@@ -138,51 +150,70 @@ export async function POST(request: NextRequest) {
       console.log("\n➕ Phase 2: Adding found songs to playlist...");
       const addPromises = foundSongs.map(async (result) => {
         try {
-          await jellyfinClient.addItemsToPlaylist(playlistId, [result.existingSong!.id]);
+          await jellyfinClient.addItemsToPlaylist(playlistId, [
+            result.existingSong!.id,
+          ]);
           console.log(`✅ Added to playlist: "${result.existingSong!.name}"`);
           return { success: true, song: result.suggestion };
         } catch (error) {
-          const errorMsg = `Failed to add "${result.suggestion.title}" to playlist: ${error instanceof Error ? error.message : 'Unknown error'}`;
+          const errorMsg = `Failed to add "${result.suggestion.title}" to playlist: ${error instanceof Error ? error.message : "Unknown error"}`;
           console.error(`❌ ${errorMsg}`);
           return { success: false, error: errorMsg };
         }
       });
 
       const addResults = await Promise.all(addPromises);
-      results.songsFound = addResults.filter(r => r.success).length;
+      results.songsFound = addResults.filter((r) => r.success).length;
       results.songsAdded += results.songsFound;
 
-      addResults.filter(r => !r.success).forEach(r => {
-        results.errors.push(r.error!);
-      });
+      addResults
+        .filter((r) => !r.success)
+        .forEach((r) => {
+          results.errors.push(r.error!);
+        });
     }
 
     // Phase 3: Download missing songs in parallel (with concurrency limit)
     if (songsToDownload.length > 0 && downloadDir && ytDlpAvailable) {
-      console.log(`\n⬇️  Phase 3: Downloading ${songsToDownload.length} missing songs...`);
+      console.log(
+        `\n⬇️  Phase 3: Downloading ${songsToDownload.length} missing songs...`,
+      );
 
       // Limit concurrent downloads to avoid overwhelming the system
-      const DOWNLOAD_CONCURRENCY = parseInt(process.env.DOWNLOAD_CONCURRENCY || '3', 10);
+      const DOWNLOAD_CONCURRENCY = parseInt(
+        process.env.DOWNLOAD_CONCURRENCY || "3",
+        10,
+      );
       const downloadBatches: Array<typeof songsToDownload> = [];
 
       for (let i = 0; i < songsToDownload.length; i += DOWNLOAD_CONCURRENCY) {
-        downloadBatches.push(songsToDownload.slice(i, i + DOWNLOAD_CONCURRENCY));
+        downloadBatches.push(
+          songsToDownload.slice(i, i + DOWNLOAD_CONCURRENCY),
+        );
       }
 
       const downloadedSongs: Array<{
-        suggestion: typeof aiSuggestions[0];
+        suggestion: (typeof aiSuggestions)[0];
         success: boolean;
         error?: string;
       }> = [];
 
       // Process downloads in batches
-      for (let batchIndex = 0; batchIndex < downloadBatches.length; batchIndex++) {
+      for (
+        let batchIndex = 0;
+        batchIndex < downloadBatches.length;
+        batchIndex++
+      ) {
         const batch = downloadBatches[batchIndex];
-        console.log(`📦 Processing download batch ${batchIndex + 1}/${downloadBatches.length} (${batch.length} songs)`);
+        console.log(
+          `📦 Processing download batch ${batchIndex + 1}/${downloadBatches.length} (${batch.length} songs)`,
+        );
 
         const batchPromises = batch.map(async (result) => {
           try {
-            console.log(`⬇️  Downloading: "${result.suggestion.title}" by "${result.suggestion.artist}"`);
+            console.log(
+              `⬇️  Downloading: "${result.suggestion.title}" by "${result.suggestion.artist}"`,
+            );
 
             const downloadResult = await downloadSong({
               title: result.suggestion.title,
@@ -207,8 +238,10 @@ export async function POST(request: NextRequest) {
               };
             }
           } catch (error) {
-            const errorMsg = `Download error: ${error instanceof Error ? error.message : 'Unknown error'}`;
-            console.error(`❌ Error downloading "${result.suggestion.title}": ${errorMsg}`);
+            const errorMsg = `Download error: ${error instanceof Error ? error.message : "Unknown error"}`;
+            console.error(
+              `❌ Error downloading "${result.suggestion.title}": ${errorMsg}`,
+            );
             return {
               suggestion: result.suggestion,
               success: false,
@@ -221,16 +254,20 @@ export async function POST(request: NextRequest) {
         downloadedSongs.push(...batchResults);
       }
 
-      const successfulDownloads = downloadedSongs.filter(d => d.success);
-      const failedDownloads = downloadedSongs.filter(d => !d.success);
+      const successfulDownloads = downloadedSongs.filter((d) => d.success);
+      const failedDownloads = downloadedSongs.filter((d) => !d.success);
 
       results.songsDownloaded = successfulDownloads.length;
-      console.log(`✅ Successfully downloaded ${successfulDownloads.length} songs`);
+      console.log(
+        `✅ Successfully downloaded ${successfulDownloads.length} songs`,
+      );
 
       if (failedDownloads.length > 0) {
         console.log(`❌ Failed to download ${failedDownloads.length} songs`);
-        failedDownloads.forEach(d => {
-          results.errors.push(`Failed to download "${d.suggestion.title}": ${d.error}`);
+        failedDownloads.forEach((d) => {
+          results.errors.push(
+            `Failed to download "${d.suggestion.title}": ${d.error}`,
+          );
         });
       }
 
@@ -239,27 +276,24 @@ export async function POST(request: NextRequest) {
         console.log("\n🔄 Phase 4: Scanning library for downloaded songs...");
 
         // Trigger library scan once for all downloads using admin auth
-        const musicLibraryId = await adminAuthClient.withAdminAuth(async () => {
-          return await jellyfinClient.triggerMusicLibraryScan();
-        });
+        const musicLibraryId = await jellyfinClient.triggerMusicLibraryScan();
 
         if (musicLibraryId) {
-          const scanCompleted = await adminAuthClient.withAdminAuth(async () => {
-            return await jellyfinClient.waitForLibraryScanCompletion(120000, 3000); // Longer timeout for multiple files
-          });
+          const scanCompleted =
+            await jellyfinClient.waitForLibraryScanCompletion(120000, 3000); // Longer timeout for multiple files
 
           if (scanCompleted) {
-            console.log("✅ Library scan completed, searching for downloaded songs...");
+            console.log(
+              "✅ Library scan completed, searching for downloaded songs...",
+            );
 
             // Search for all downloaded songs in parallel using admin auth
             const findPromises = successfulDownloads.map(async (download) => {
               try {
-                const foundSong = await adminAuthClient.withAdminAuth(async () => {
-                  return await jellyfinClient.findSongInLibrary(
-                    download.suggestion.title,
-                    download.suggestion.artist
-                  );
-                });
+                const foundSong = await jellyfinClient.findSongInLibrary(
+                  download.suggestion.title,
+                  download.suggestion.artist,
+                );
                 return {
                   suggestion: download.suggestion,
                   foundSong,
@@ -269,72 +303,97 @@ export async function POST(request: NextRequest) {
                 return {
                   suggestion: download.suggestion,
                   foundSong: null,
-                  error: error instanceof Error ? error.message : 'Unknown error',
+                  error:
+                    error instanceof Error ? error.message : "Unknown error",
                 };
               }
             });
 
             const findResults = await Promise.all(findPromises);
-            const foundDownloads = findResults.filter(r => r.foundSong && !r.error);
-            const notFoundDownloads = findResults.filter(r => !r.foundSong);
+            const foundDownloads = findResults.filter(
+              (r) => r.foundSong && !r.error,
+            );
+            const notFoundDownloads = findResults.filter((r) => !r.foundSong);
 
             // Add found downloaded songs to playlist in parallel
             if (foundDownloads.length > 0) {
-              const addDownloadedPromises = foundDownloads.map(async (result) => {
-                try {
-                  await jellyfinClient.addItemsToPlaylist(playlistId, [result.foundSong!.id]);
-                  console.log(`✅ Added downloaded song to playlist: "${result.foundSong!.name}"`);
-                  return { success: true };
-                } catch (error) {
-                  const errorMsg = `Failed to add downloaded "${result.suggestion.title}" to playlist: ${error instanceof Error ? error.message : 'Unknown error'}`;
-                  console.error(`❌ ${errorMsg}`);
-                  return { success: false, error: errorMsg };
-                }
-              });
+              const addDownloadedPromises = foundDownloads.map(
+                async (result) => {
+                  try {
+                    await jellyfinClient.addItemsToPlaylist(playlistId, [
+                      result.foundSong!.id,
+                    ]);
+                    console.log(
+                      `✅ Added downloaded song to playlist: "${result.foundSong!.name}"`,
+                    );
+                    return { success: true };
+                  } catch (error) {
+                    const errorMsg = `Failed to add downloaded "${result.suggestion.title}" to playlist: ${error instanceof Error ? error.message : "Unknown error"}`;
+                    console.error(`❌ ${errorMsg}`);
+                    return { success: false, error: errorMsg };
+                  }
+                },
+              );
 
-              const addDownloadedResults = await Promise.all(addDownloadedPromises);
-              const successfulAdds = addDownloadedResults.filter(r => r.success).length;
+              const addDownloadedResults = await Promise.all(
+                addDownloadedPromises,
+              );
+              const successfulAdds = addDownloadedResults.filter(
+                (r) => r.success,
+              ).length;
               results.songsAdded += successfulAdds;
 
-              addDownloadedResults.filter(r => !r.success).forEach(r => {
-                results.errors.push(r.error!);
-              });
+              addDownloadedResults
+                .filter((r) => !r.success)
+                .forEach((r) => {
+                  results.errors.push(r.error!);
+                });
             }
 
             // Report songs that couldn't be found after download
-            notFoundDownloads.forEach(result => {
+            notFoundDownloads.forEach((result) => {
               const errorMsg = `Downloaded "${result.suggestion.title}" but couldn't find it in library after scan`;
               console.log(`⚠️  ${errorMsg}`);
               results.errors.push(errorMsg);
             });
-
           } else {
             console.log("⚠️  Library scan timeout");
-            results.errors.push("Library scan timed out - downloaded songs may not be available immediately");
+            results.errors.push(
+              "Library scan timed out - downloaded songs may not be available immediately",
+            );
           }
         } else {
           console.log("❌ Failed to trigger library scan");
-          results.errors.push("Failed to trigger library scan for downloaded songs");
+          results.errors.push(
+            "Failed to trigger library scan for downloaded songs",
+          );
         }
       }
     } else if (songsToDownload.length > 0) {
       // Can't download - add errors for each song
-      songsToDownload.forEach(result => {
-        const reason = !downloadDir ? "download directory not configured" : "yt-dlp not available";
-        results.errors.push(`Cannot download "${result.suggestion.title}" - ${reason}`);
+      songsToDownload.forEach((result) => {
+        const reason = !downloadDir
+          ? "download directory not configured"
+          : "yt-dlp not available";
+        results.errors.push(
+          `Cannot download "${result.suggestion.title}" - ${reason}`,
+        );
       });
     }
 
     console.log(`\n🎉 Radio playlist creation completed!`);
-    console.log(`📊 Results: ${results.songsAdded}/${results.totalSuggestions} songs added`);
-    console.log(`📊 Found: ${results.songsFound}, Downloaded: ${results.songsDownloaded}`);
+    console.log(
+      `📊 Results: ${results.songsAdded}/${results.totalSuggestions} songs added`,
+    );
+    console.log(
+      `📊 Found: ${results.songsFound}, Downloaded: ${results.songsDownloaded}`,
+    );
 
     return NextResponse.json({
       success: true,
       message: `Radio playlist "${playlistName}" created successfully`,
       ...results,
     });
-
   } catch (error) {
     console.error("Error creating radio playlist:", error);
     return NextResponse.json(

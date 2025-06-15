@@ -46,24 +46,27 @@ export default function RadioPlaylistCreator({
       }
 
       console.log("Radio playlist creation successful:", result);
-      
+
       // Show success message
-      const successMessage = `🎉 Radio playlist "${result.playlistName}" created successfully!\n\n` +
+      const successMessage =
+        `🎉 Radio playlist "${result.playlistName}" created successfully!\n\n` +
         `📊 Results:\n` +
         `• ${result.songsAdded}/${result.totalSuggestions} songs added\n` +
         `• ${result.songsFound} found in library\n` +
         `• ${result.songsDownloaded} downloaded\n` +
-        (result.errors.length > 0 ? `\n⚠️ ${result.errors.length} errors occurred` : "");
-      
+        (result.errors.length > 0
+          ? `\n⚠️ ${result.errors.length} errors occurred`
+          : "");
+
       alert(successMessage);
-      
+
       setSongPrompt("");
       onSuccess();
       onClose();
     } catch (error) {
       console.error("Radio playlist creation failed:", error);
       alert(
-        `Failed to create radio playlist: ${error instanceof Error ? error.message : "Unknown error"}`
+        `Failed to create radio playlist: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
     } finally {
       setIsCreating(false);
@@ -79,14 +82,21 @@ export default function RadioPlaylistCreator({
         <h3 className="text-lg font-medium text-gray-900 mb-4">
           🎵 Create Radio Playlist
         </h3>
-        
+
         <div className="mb-4 text-sm text-gray-600">
-          <p>Enter a song or artist to create a 25-song radio playlist. AI will suggest similar songs, and any missing tracks will be automatically downloaded.</p>
+          <p>
+            Enter a song or artist to create a 25-song radio playlist. AI will
+            suggest similar songs, and any missing tracks will be automatically
+            downloaded.
+          </p>
         </div>
 
         <form onSubmit={handleCreateRadioPlaylist}>
           <div className="mb-4">
-            <label htmlFor="songPrompt" className="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              htmlFor="songPrompt"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
               Song or Artist Prompt
             </label>
             <input
@@ -171,16 +181,18 @@ export default function RadioPlaylistCreator({
                   Creating Radio...
                 </>
               ) : (
-                <>
-                  🎵 Create Radio Playlist
-                </>
+                <>🎵 Create Radio Playlist</>
               )}
             </button>
           </div>
         </form>
 
         <div className="mt-4 text-xs text-gray-500">
-          <p><strong>Note:</strong> This process may take several minutes as it generates AI suggestions, checks your library, and downloads missing songs.</p>
+          <p>
+            <strong>Note:</strong> This process may take several minutes as it
+            generates AI suggestions, checks your library, and downloads missing
+            songs.
+          </p>
         </div>
       </div>
     </div>

@@ -179,17 +179,21 @@ export async function enhanceAudioFileWithMetadata(
   album?: string,
 ): Promise<boolean> {
   try {
-    console.log(`🎵 Enhancing metadata for: "${title}" by "${artist}"${album ? ` (${album})` : ""}`);
-    
+    console.log(
+      `🎵 Enhancing metadata for: "${title}" by "${artist}"${album ? ` (${album})` : ""}`,
+    );
+
     // First, try to fetch metadata from MusicBrainz
     let metadata = await fetchMetadataFromMusicBrainz(title, artist, album);
 
     if (!metadata) {
-      console.log("❌ No metadata found from MusicBrainz, trying AI parsing...");
-      
+      console.log(
+        "❌ No metadata found from MusicBrainz, trying AI parsing...",
+      );
+
       // Try to parse and clean up metadata using AI
       const aiMetadata = await parseMetadataWithAI(title, artist, album);
-      
+
       if (aiMetadata) {
         console.log("🤖 AI successfully parsed metadata:", aiMetadata);
         // Convert AI metadata to our SongMetadata format
@@ -217,13 +221,13 @@ export async function enhanceAudioFileWithMetadata(
 
     // Inject the metadata (from MusicBrainz, AI, or basic)
     const success = await injectMetadataIntoMp3(filePath, metadata);
-    
+
     if (success) {
       console.log("✅ Successfully enhanced file with metadata");
     } else {
       console.log("❌ Failed to inject metadata into file");
     }
-    
+
     return success;
   } catch (error) {
     console.error("Error enhancing audio file with metadata:", error);

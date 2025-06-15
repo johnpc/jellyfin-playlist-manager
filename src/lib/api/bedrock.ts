@@ -116,7 +116,7 @@ Only return the JSON object, no other text.`;
     // Try to parse the JSON response
     try {
       const parsedMetadata = JSON.parse(aiResponse);
-      
+
       // Validate the response has required fields
       if (parsedMetadata.title && parsedMetadata.artist) {
         console.log("AI parsed metadata:", parsedMetadata);
@@ -126,7 +126,10 @@ Only return the JSON object, no other text.`;
         return null;
       }
     } catch {
-      console.error("Failed to parse AI metadata response as JSON:", aiResponse);
+      console.error(
+        "Failed to parse AI metadata response as JSON:",
+        aiResponse,
+      );
       // Try to extract JSON from the response if it's wrapped in other text
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -161,7 +164,7 @@ export async function generatePlaylistSuggestions(
 
   // Determine how many suggestions to generate
   const suggestionCount = count || (radioMode ? 25 : 5);
-  
+
   // Create a prompt based on the playlist items
   const playlistDescription = playlistItems
     .slice(0, 10) // Limit to first 10 items to avoid token limits
@@ -171,7 +174,7 @@ export async function generatePlaylistSuggestions(
     )
     .join(", ");
 
-  const prompt = radioMode 
+  const prompt = radioMode
     ? `I want to create a radio station based on this song/artist: ${playlistDescription}
 
 Please suggest ${suggestionCount} songs that would create a great radio playlist in this style. Think like a radio DJ curating a cohesive listening experience. Include:
@@ -246,7 +249,9 @@ Only return the JSON array, no other text.`;
     // Try to parse the JSON response
     try {
       const suggestions = JSON.parse(aiResponse);
-      return Array.isArray(suggestions) ? suggestions.slice(0, suggestionCount) : [];
+      return Array.isArray(suggestions)
+        ? suggestions.slice(0, suggestionCount)
+        : [];
     } catch {
       console.error("Failed to parse AI response as JSON:", aiResponse);
       // Try to extract JSON from the response if it's wrapped in other text
@@ -254,7 +259,9 @@ Only return the JSON array, no other text.`;
       if (jsonMatch) {
         try {
           const suggestions = JSON.parse(jsonMatch[0]);
-          return Array.isArray(suggestions) ? suggestions.slice(0, suggestionCount) : [];
+          return Array.isArray(suggestions)
+            ? suggestions.slice(0, suggestionCount)
+            : [];
         } catch {
           console.error("Failed to parse extracted JSON:", jsonMatch[0]);
         }
