@@ -25,8 +25,15 @@ RUN npm ci --only=production && npm cache clean --force
 # Build stage
 FROM base AS builder
 COPY package*.json ./
-RUN npm ci
+
+# Use cache mount for npm to speed up builds
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
+
 COPY . .
+
+# Disable Next.js telemetry for faster builds
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build the application
 RUN npm run build
@@ -61,6 +68,7 @@ RUN mkdir -p /app/downloads /app/data && \
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Expose port
 EXPOSE 3000
