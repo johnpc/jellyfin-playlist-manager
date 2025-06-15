@@ -99,9 +99,7 @@ export async function POST(request: NextRequest) {
     console.log("\n🔍 Phase 1: Searching library for existing songs...");
     const searchPromises = aiSuggestions.map(async (suggestion, index) => {
       try {
-        const existingSong = await adminAuthClient.withAdminAuth(async () => {
-          return await jellyfinClient.findSongInLibrary(suggestion.title, suggestion.artist);
-        });
+        const existingSong = await jellyfinClient.findSongInLibrary(suggestion.title, suggestion.artist);
         return {
           index,
           suggestion,
@@ -109,6 +107,7 @@ export async function POST(request: NextRequest) {
           error: null,
         };
       } catch (error) {
+        console.log({error});
         return {
           index,
           suggestion,
@@ -243,7 +242,7 @@ export async function POST(request: NextRequest) {
         const musicLibraryId = await adminAuthClient.withAdminAuth(async () => {
           return await jellyfinClient.triggerMusicLibraryScan();
         });
-        
+
         if (musicLibraryId) {
           const scanCompleted = await adminAuthClient.withAdminAuth(async () => {
             return await jellyfinClient.waitForLibraryScanCompletion(120000, 3000); // Longer timeout for multiple files
