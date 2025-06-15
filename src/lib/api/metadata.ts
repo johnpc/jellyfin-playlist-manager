@@ -1,6 +1,7 @@
 import NodeID3 from "node-id3";
 import { MusicBrainzApi } from "musicbrainz-api";
 import { promises as fs } from "fs";
+import { parseMetadataWithAI } from "./bedrock";
 
 // Initialize MusicBrainz API client
 const mbApi = new MusicBrainzApi({
@@ -178,23 +179,52 @@ export async function enhanceAudioFileWithMetadata(
   album?: string,
 ): Promise<boolean> {
   try {
+    console.log(`🎵 Enhancing metadata for: "${title}" by "${artist}"${album ? ` (${album})` : ""}`);
+    
     // First, try to fetch metadata from MusicBrainz
-    const metadata = await fetchMetadataFromMusicBrainz(title, artist, album);
+    let metadata = await fetchMetadataFromMusicBrainz(title, artist, album);
 
     if (!metadata) {
-      console.log("No metadata found from MusicBrainz, using basic info");
-      // Use basic metadata if MusicBrainz doesn't have info
-      const basicMetadata: SongMetadata = {
-        title,
-        artist,
-        album,
-        albumArtist: artist,
-      };
-      return await injectMetadataIntoMp3(filePath, basicMetadata);
+      console.log("❌ No metadata found from MusicBrainz, trying AI parsing...");
+      
+      // Try to parse and clean up metadata using AI
+      const aiMetadata = await parseMetadataWithAI(title, artist, album);
+      
+      if (aiMetadata) {
+        console.log("🤖 AI successfully parsed metadata:", aiMetadata);
+        // Convert AI metadata to our SongMetadata format
+        metadata = {
+          title: aiMetadata.title,
+          artist: aiMetadata.artist,
+          album: aiMetadata.album,
+          albumArtist: aiMetadata.artist,
+          year: aiMetadata.year,
+          genre: aiMetadata.genre,
+        };
+      } else {
+        console.log("❌ AI parsing failed, using basic info");
+        // Use basic metadata if both MusicBrainz and AI fail
+        metadata = {
+          title,
+          artist,
+          album,
+          albumArtist: artist,
+        };
+      }
+    } else {
+      console.log("✅ MusicBrainz metadata found:", metadata);
     }
 
-    // Inject the fetched metadata
-    return await injectMetadataIntoMp3(filePath, metadata);
+    // Inject the metadata (from MusicBrainz, AI, or basic)
+    const success = await injectMetadataIntoMp3(filePath, metadata);
+    
+    if (success) {
+      console.log("✅ Successfully enhanced file with metadata");
+    } else {
+      console.log("❌ Failed to inject metadata into file");
+    }
+    
+    return success;
   } catch (error) {
     console.error("Error enhancing audio file with metadata:", error);
     return false;

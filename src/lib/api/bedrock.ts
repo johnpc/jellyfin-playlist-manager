@@ -19,6 +19,135 @@ export interface AISuggestion {
   reason?: string;
 }
 
+export interface ParsedMetadata {
+  title: string;
+  artist: string;
+  album?: string;
+  year?: number;
+  genre?: string;
+}
+
+export async function parseMetadataWithAI(
+  rawTitle: string,
+  rawArtist: string,
+  rawAlbum?: string,
+): Promise<ParsedMetadata | null> {
+  // Validate environment variables
+  if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    console.error("AWS credentials not configured");
+    return null;
+  }
+
+  const prompt = `Please parse and clean up this music metadata. The data may contain extra information, formatting issues, or inconsistencies that need to be cleaned up.
+
+Raw metadata:
+- Title: "${rawTitle}"
+- Artist: "${rawArtist}"
+${rawAlbum ? `- Album: "${rawAlbum}"` : ""}
+
+Please analyze this information and return clean, properly formatted metadata. Consider:
+
+1. **Title Cleaning:**
+   - Remove video-specific text: "(Official Video)", "(Official Music Video)", "(Lyric Video)", "(Audio)", "[Official Video]", etc.
+   - Remove quality indicators: "[HD]", "[4K]", "(HQ)", etc.
+   - Remove platform indicators: "(YouTube)", "(Spotify)", etc.
+   - Remove extra descriptors: "(Explicit)", "(Clean)", "(Radio Edit)", etc.
+   - Keep important musical descriptors: "(Acoustic)", "(Live)", "(Remix)", "(Extended Mix)", etc.
+
+2. **Artist Cleaning:**
+   - Remove channel suffixes: "VEVO", "Official", "Music", etc.
+   - Handle collaborations properly: "Artist feat. Other" → main artist is "Artist"
+   - Clean up formatting and capitalization
+   - Remove record label names if they appear
+
+3. **Smart Inference:**
+   - If you recognize the artist/song combination, provide the correct album name
+   - Infer release year if you know the song (be conservative, only if confident)
+   - Suggest genre based on the artist's typical style (be general, not too specific)
+
+4. **Formatting:**
+   - Use proper title case for titles and albums
+   - Use proper capitalization for artist names
+   - Be consistent with punctuation
+
+Respond with a JSON object containing:
+- title: Clean song title
+- artist: Main artist name (clean)
+- album: Album name (only if known or can be confidently inferred)
+- year: Release year (only if can be confidently inferred)
+- genre: Music genre (only if can be reasonably inferred, use broad categories like "Rock", "Pop", "Hip Hop", "Electronic", etc.)
+
+Example format:
+{
+  "title": "Song Name",
+  "artist": "Artist Name",
+  "album": "Album Name",
+  "year": 2020,
+  "genre": "Pop"
+}
+
+Important: Only include album, year, and genre if you're reasonably confident. It's better to omit them than to guess incorrectly.
+
+Only return the JSON object, no other text.`;
+
+  try {
+    const command = new InvokeModelCommand({
+      modelId: "anthropic.claude-3-haiku-20240307-v1:0",
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify({
+        anthropic_version: "bedrock-2023-05-31",
+        max_tokens: 500,
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    const response = await bedrockClient.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+
+    // Parse the AI response
+    const aiResponse = responseBody.content[0].text;
+
+    // Try to parse the JSON response
+    try {
+      const parsedMetadata = JSON.parse(aiResponse);
+      
+      // Validate the response has required fields
+      if (parsedMetadata.title && parsedMetadata.artist) {
+        console.log("AI parsed metadata:", parsedMetadata);
+        return parsedMetadata;
+      } else {
+        console.error("AI response missing required fields:", parsedMetadata);
+        return null;
+      }
+    } catch {
+      console.error("Failed to parse AI metadata response as JSON:", aiResponse);
+      // Try to extract JSON from the response if it's wrapped in other text
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        try {
+          const parsedMetadata = JSON.parse(jsonMatch[0]);
+          if (parsedMetadata.title && parsedMetadata.artist) {
+            console.log("AI parsed metadata (extracted):", parsedMetadata);
+            return parsedMetadata;
+          }
+        } catch {
+          console.error("Failed to parse extracted JSON:", jsonMatch[0]);
+        }
+      }
+      return null;
+    }
+  } catch (error) {
+    console.error("Error parsing metadata with AI:", error);
+    return null;
+  }
+}
+
 export async function generatePlaylistSuggestions(
   playlistItems: Array<{ name: string; albumArtist?: string; album?: string }>,
   radioMode: boolean = false,

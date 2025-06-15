@@ -69,7 +69,7 @@ JELLYFIN_SERVER_URL=http://localhost:8096
 
 ### AWS Bedrock Setup
 
-To enable AI-powered playlist suggestions, you need to:
+To enable AI-powered playlist suggestions and metadata parsing, you need to:
 
 1. **Enable Bedrock Models**: Go to the AWS Bedrock console and request access to the Claude 3 Haiku model in your region
 2. **Create IAM User**: Create an IAM user with the following permissions:
@@ -86,6 +86,10 @@ To enable AI-powered playlist suggestions, you need to:
    }
    ```
 3. **Get Credentials**: Generate access keys for the IAM user and add them to your `.env.local` file
+
+**AI Features Enabled:**
+- **Playlist Suggestions**: Analyzes your current playlist and suggests similar songs
+- **Metadata Parsing**: When MusicBrainz doesn't have song data, AI cleans up and parses song titles, artist names, and can infer album/genre information
 
 ### Development
 
@@ -133,9 +137,11 @@ For songs that aren't in your library, the app can automatically download them:
 The app goes beyond simple downloading by properly tagging your music files:
 
 - **MusicBrainz Integration**: Fetches accurate metadata from the MusicBrainz database
+- **AI-Powered Fallback**: When MusicBrainz doesn't have data, uses AWS Bedrock (Claude 3 Haiku) to intelligently parse and clean up song titles and artist names
+- **Smart Metadata Parsing**: AI removes video-specific text like "(Official Video)", cleans up artist names, fixes capitalization, and can infer album names and genres
 - **ID3 Tag Injection**: Adds proper title, artist, album, year, and track information
-- **MusicBrainz IDs**: Includes MusicBrainz identifiers for better music library management
-- **Fallback Handling**: Uses basic metadata if MusicBrainz data isn't available
+- **MusicBrainz IDs**: Includes MusicBrainz identifiers for better music library management when available
+- **Comprehensive Fallback**: Uses basic metadata if both MusicBrainz and AI parsing fail
 - **Jellyfin Compatibility**: Ensures tags are compatible with Jellyfin's metadata system
 
 ### Setup for Downloads

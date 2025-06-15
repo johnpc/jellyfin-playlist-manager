@@ -3,9 +3,6 @@ const nextConfig = {
   output: "standalone",
   serverExternalPackages: ["node-id3", "musicbrainz-api"],
   
-  // Disable telemetry for faster builds
-  telemetry: false,
-  
   // Disable source maps in production builds for faster builds
   productionBrowserSourceMaps: false,
   

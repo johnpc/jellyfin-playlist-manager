@@ -249,7 +249,7 @@ export async function downloadSong(
       console.log(`Download completed: ${expectedFilePath}`);
 
       // Enhance the file with proper metadata
-      console.log("Enhancing file with metadata...");
+      console.log("🎵 Enhancing file with metadata...");
       const metadataSuccess = await enhanceAudioFileWithMetadata(
         expectedFilePath,
         title,
@@ -258,10 +258,10 @@ export async function downloadSong(
       );
 
       if (metadataSuccess) {
-        console.log("Successfully enhanced file with metadata");
+        console.log("✅ Successfully enhanced file with metadata");
       } else {
         console.warn(
-          "Failed to enhance file with metadata, but file was downloaded",
+          "⚠️  Failed to enhance file with metadata, but file was downloaded",
         );
       }
 
