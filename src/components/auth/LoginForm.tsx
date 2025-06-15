@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthStore } from "@/lib/store/auth";
@@ -17,6 +18,7 @@ export default function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const login = useAuthStore((state) => state.login);
+  const router = useRouter();
 
   const {
     register,
@@ -73,6 +75,10 @@ export default function LoginForm() {
 
     try {
       await login(data);
+      
+      // Login successful - redirect to home page
+      console.log("✅ Login successful, redirecting to home page");
+      router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

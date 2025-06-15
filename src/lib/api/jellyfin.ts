@@ -49,6 +49,9 @@ class JellyfinClient {
         serverId: response.data.ServerId!,
       };
 
+      // Store the access token for future use
+      this.accessToken = this.api.accessToken;
+
       return { user, accessToken: this.api.accessToken };
     } catch (error) {
       console.error("Authentication error:", error);
@@ -67,8 +70,18 @@ class JellyfinClient {
     this.userId = userId;
   }
 
+  updateAccessToken(accessToken: string) {
+    this.accessToken = accessToken;
+    if (this.api) {
+      this.api.accessToken = accessToken;
+    }
+  }
+
   async isAuthenticated(): Promise<boolean> {
-    try {
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
       if (!this.api) {
         return false;
       }
@@ -85,10 +98,7 @@ class JellyfinClient {
 
       console.log({ loggedIn: true, user });
       return true;
-    } catch (error) {
-      console.error("Authentication error:", error);
-      return false;
-    }
+    });
   }
 
   async getPlaylists(): Promise<Playlist[]> {
@@ -96,10 +106,13 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
-      const itemsApi = getItemsApi(this.api);
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
+      const itemsApi = getItemsApi(this.api!);
       const response = await itemsApi.getItems({
-        userId: this.userId,
+        userId: this.userId!,
         includeItemTypes: ["Playlist"],
         recursive: true,
         fields: ["ItemCounts", "PrimaryImageAspectRatio"],
@@ -116,10 +129,7 @@ class JellyfinClient {
           imageTags: item.ImageTags || undefined,
         })) || []
       );
-    } catch (error) {
-      console.error("Error fetching playlists:", error);
-      throw new Error("Failed to fetch playlists");
-    }
+    });
   }
 
   async getPlaylistItems(playlistId: string): Promise<PlaylistItem[]> {
@@ -127,10 +137,13 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
-      const itemsApi = getItemsApi(this.api);
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
+      const itemsApi = getItemsApi(this.api!);
       const response = await itemsApi.getItems({
-        userId: this.userId,
+        userId: this.userId!,
         parentId: playlistId,
         fields: ["ParentId"],
       });
@@ -153,10 +166,7 @@ class JellyfinClient {
             }) as PlaylistItem,
         ) || []
       );
-    } catch (error) {
-      console.error("Error fetching playlist items:", error);
-      throw new Error("Failed to fetch playlist items");
-    }
+    });
   }
 
   async createPlaylist(name: string): Promise<string> {
@@ -164,20 +174,20 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
-      const playlistsApi = getPlaylistsApi(this.api);
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
+      const playlistsApi = getPlaylistsApi(this.api!);
       const response = await playlistsApi.createPlaylist({
         createPlaylistDto: {
           Name: name,
-          UserId: this.userId,
+          UserId: this.userId!,
         },
       });
 
       return response.data.Id!;
-    } catch (error) {
-      console.error("Error creating playlist:", error);
-      throw new Error("Failed to create playlist");
-    }
+    });
   }
 
   async addItemsToPlaylist(
@@ -188,13 +198,16 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
       console.log(`🎵 Adding ${itemIds.length} items to playlist ${playlistId}`);
       console.log(`📝 Items to add:`, itemIds);
 
       // Try the SDK method first (which was working in the UI)
       try {
-        const playlistsApi = getPlaylistsApi(this.api);
+        const playlistsApi = getPlaylistsApi(this.api!);
         
         // Add items one by one since the SDK method might expect single items
         for (const itemId of itemIds) {
@@ -233,11 +246,11 @@ class JellyfinClient {
         try {
           console.log(`🔄 Trying direct API call with ${attempt.description}...`);
           
-          const response = await this.api.axiosInstance.post(
+          const response = await this.api!.axiosInstance.post(
             `/Playlists/${playlistId}/Items`,
             {},
             {
-              baseURL: this.api.basePath,
+              baseURL: this.api!.basePath,
               headers: {
                 Authorization: `MediaBrowser Token="${this.accessToken}"`,
                 "X-Emby-Token": this.accessToken,
@@ -259,21 +272,7 @@ class JellyfinClient {
 
       // If all attempts failed, throw the original error
       throw new Error("All API call attempts failed");
-
-    } catch (error) {
-      console.error("Error adding items to playlist:", error);
-      if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { status?: number; data?: unknown } };
-        console.error(`Response status: ${axiosError.response?.status}`);
-        console.error(`Response data:`, axiosError.response?.data);
-
-        // Check specific error cases
-        if (axiosError.response?.status === 403) {
-          throw new Error("Permission denied: Your authentication token might have expired. Please try logging in again.");
-        }
-      }
-      throw new Error("Failed to add items to playlist");
-    }
+    });
   }
 
   async removeItemFromPlaylist(
@@ -284,10 +283,13 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
       // Use direct API call with explicit authentication headers
-      await this.api.axiosInstance.delete(`/Playlists/${playlistId}/Items`, {
-        baseURL: this.api.basePath,
+      await this.api!.axiosInstance.delete(`/Playlists/${playlistId}/Items`, {
+        baseURL: this.api!.basePath,
         headers: {
           Authorization: `MediaBrowser Token="${this.accessToken}"`,
           "X-Emby-Token": this.accessToken,
@@ -296,10 +298,7 @@ class JellyfinClient {
           entryIds: itemId,
         },
       });
-    } catch (error) {
-      console.error("Error removing item from playlist:", error);
-      throw new Error("Failed to remove item from playlist");
-    }
+    });
   }
 
   async getPlaylistDetails(playlistId: string): Promise<Playlist> {
@@ -307,10 +306,13 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
-      const itemsApi = getItemsApi(this.api);
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
+      const itemsApi = getItemsApi(this.api!);
       const response = await itemsApi.getItems({
-        userId: this.userId,
+        userId: this.userId!,
         ids: [playlistId],
         fields: ["ItemCounts", "PrimaryImageAspectRatio"],
       });
@@ -329,10 +331,7 @@ class JellyfinClient {
           : undefined,
         imageTags: item.ImageTags || undefined,
       };
-    } catch (error) {
-      console.error("Error fetching playlist details:", error);
-      throw new Error("Failed to fetch playlist details");
-    }
+    });
   }
 
   async updatePlaylistName(
@@ -343,7 +342,10 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
       // Delete the old playlist and create a new one with the same items
       // This is a workaround since Jellyfin doesn't have a direct rename API
 
@@ -364,10 +366,7 @@ class JellyfinClient {
 
       // Return the new playlist ID
       return newPlaylistId;
-    } catch (error) {
-      console.error("Error updating playlist name:", error);
-      throw new Error("Failed to update playlist name");
-    }
+    });
   }
 
   async movePlaylistItem(
@@ -379,23 +378,23 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
       // Use direct API call since moveItem might not be available in the SDK
-      await this.api.axiosInstance.post(
+      await this.api!.axiosInstance.post(
         `/Playlists/${playlistId}/Items/${itemId}/Move/${newIndex}`,
         {},
         {
-          baseURL: this.api.basePath,
+          baseURL: this.api!.basePath,
           headers: {
             Authorization: `MediaBrowser Token="${this.accessToken}"`,
             "X-Emby-Token": this.accessToken,
           },
         },
       );
-    } catch (error) {
-      console.error("Error moving playlist item:", error);
-      throw new Error("Failed to move playlist item");
-    }
+    });
   }
 
   async deletePlaylist(playlistId: string): Promise<void> {
@@ -403,19 +402,19 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
       // Use the axios instance with proper authentication headers
-      await this.api.axiosInstance.delete(`/Items/${playlistId}`, {
-        baseURL: this.api.basePath,
+      await this.api!.axiosInstance.delete(`/Items/${playlistId}`, {
+        baseURL: this.api!.basePath,
         headers: {
           Authorization: `MediaBrowser Token="${this.accessToken}"`,
           "X-Emby-Token": this.accessToken,
         },
       });
-    } catch (error) {
-      console.error("Error deleting playlist:", error);
-      throw new Error("Failed to delete playlist");
-    }
+    });
   }
 
   async searchItems(
@@ -426,12 +425,15 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
-      const searchApi = getSearchApi(this.api);
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
+      const searchApi = getSearchApi(this.api!);
 
       // Use SearchHints API which is designed for this purpose
       const response = await searchApi.getSearchHints({
-        userId: this.userId,
+        userId: this.userId!,
         searchTerm: query,
         includeItemTypes: ["Audio", "MusicAlbum", "MusicArtist"],
         includeArtists: true,
@@ -497,10 +499,7 @@ class JellyfinClient {
           return (a.album || "").localeCompare(b.album || "");
         return aName.localeCompare(bName);
       });
-    } catch (error) {
-      console.error("Error searching items:", error);
-      throw new Error("Failed to search items");
-    }
+    });
   }
 
   getImageUrl(
@@ -520,10 +519,13 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
-      const itemsApi = getItemsApi(this.api);
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
+      const itemsApi = getItemsApi(this.api!);
       const response = await itemsApi.getItems({
-        userId: this.userId,
+        userId: this.userId!,
         includeItemTypes: ["CollectionFolder"],
       });
 
@@ -544,10 +546,7 @@ class JellyfinClient {
         console.log("❌ No music library found in collection folders");
         return null;
       }
-    } catch (error) {
-      console.error("Error getting music library ID:", error);
-      return null;
-    }
+    });
   }
 
   async triggerMusicLibraryScan(): Promise<string | null> {
@@ -555,7 +554,10 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
       const musicLibraryId = await this.getMusicLibraryId();
       if (!musicLibraryId) {
         console.error("❌ Music library not found");
@@ -572,7 +574,7 @@ class JellyfinClient {
       });
 
       // Trigger a scan of just the music library
-      const response = await this.api.axiosInstance.post(
+      const response = await this.api!.axiosInstance.post(
         `/Items/${musicLibraryId}/Refresh`,
         {
           Recursive: true,
@@ -582,7 +584,7 @@ class JellyfinClient {
           ReplaceAllMetadata: false,
         },
         {
-          baseURL: this.api.basePath,
+          baseURL: this.api!.basePath,
           headers: {
             Authorization: `MediaBrowser Token="${this.accessToken}"`,
             "X-Emby-Token": this.accessToken,
@@ -622,16 +624,7 @@ class JellyfinClient {
       }
 
       return musicLibraryId;
-    } catch (error) {
-      console.error("❌ Failed to trigger music library scan:", error);
-      if (error instanceof Error) {
-        console.error("Error details:", error.message);
-      } else if (error && typeof error === 'object' && 'response' in error) {
-        const axiosError = error as { response?: { data?: unknown } };
-        console.error("Error details:", axiosError.response?.data || error);
-      }
-      return null;
-    }
+    });
   }
 
   async getActiveTasks(): Promise<JellyfinTask[]> {
@@ -639,9 +632,12 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
-      const response = await this.api.axiosInstance.get("/ScheduledTasks", {
-        baseURL: this.api.basePath,
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
+      const response = await this.api!.axiosInstance.get("/ScheduledTasks", {
+        baseURL: this.api!.basePath,
         headers: {
           Authorization: `MediaBrowser Token="${this.accessToken}"`,
           "X-Emby-Token": this.accessToken,
@@ -649,10 +645,7 @@ class JellyfinClient {
       });
 
       return response.data || [];
-    } catch (error) {
-      console.error("Error getting active tasks:", error);
-      return [];
-    }
+    });
   }
 
   async getTaskInfo(taskId?: string): Promise<JellyfinTask | null> {
@@ -660,12 +653,15 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
       const endpoint = taskId
         ? `/ScheduledTasks/${taskId}`
         : "/ScheduledTasks/Running";
-      const response = await this.api.axiosInstance.get(endpoint, {
-        baseURL: this.api.basePath,
+      const response = await this.api!.axiosInstance.get(endpoint, {
+        baseURL: this.api!.basePath,
         headers: {
           Authorization: `MediaBrowser Token="${this.accessToken}"`,
           "X-Emby-Token": this.accessToken,
@@ -673,10 +669,7 @@ class JellyfinClient {
       });
 
       return response.data;
-    } catch (error) {
-      console.error("Error getting task info:", error);
-      return null;
-    }
+    });
   }
 
   async waitForLibraryScanCompletion(
@@ -823,12 +816,15 @@ class JellyfinClient {
       throw new Error("Not authenticated");
     }
 
-    try {
-      await this.api.axiosInstance.post(
+    // Import authClient here to avoid circular dependency
+    const { authClient } = await import("./auth-client");
+    
+    return authClient.withTokenRefresh(async () => {
+      await this.api!.axiosInstance.post(
         "/Library/Refresh",
         {},
         {
-          baseURL: this.api.basePath,
+          baseURL: this.api!.basePath,
           headers: {
             Authorization: `MediaBrowser Token="${this.accessToken}"`,
             "X-Emby-Token": this.accessToken,
@@ -838,10 +834,7 @@ class JellyfinClient {
 
       console.log("✅ Full library refresh triggered successfully");
       return true;
-    } catch (error) {
-      console.error("❌ Failed to trigger full library refresh:", error);
-      return false;
-    }
+    });
   }
 }
 

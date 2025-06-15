@@ -3,6 +3,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 ## Features
 
 - **Jellyfin Integration**: Connect to your Jellyfin server to manage music playlists
+- **Automatic Token Refresh**: Seamlessly handles expired authentication tokens without user intervention
 - **AI-Powered Suggestions**: Get intelligent song recommendations using AWS Bedrock
 - **Auto-Download**: Download suggested songs from YouTube when they're not in your library
 - **Progressive Web App**: Install on your device for a native app experience
@@ -214,3 +215,14 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
 **Note**: When deploying, make sure to add your AWS environment variables to your deployment platform's environment configuration.
+
+## Authentication & Token Management
+
+The app includes robust authentication handling with automatic token refresh:
+
+- **Seamless Experience**: Expired tokens are automatically refreshed in the background
+- **No Interruptions**: Users stay logged in even when tokens expire
+- **Secure Storage**: Credentials stored locally for automatic refresh
+- **Fallback Handling**: Graceful logout and redirect if refresh fails
+
+For detailed information about authentication and testing token refresh, see [AUTHENTICATION.md](AUTHENTICATION.md).
