@@ -64,6 +64,9 @@ AWS_SECRET_ACCESS_KEY=your_secret_key_here
 # Download Configuration
 MUSIC_DOWNLOAD_DIR=/path/to/your/jellyfin/music/directory
 
+# Download Performance (optional)
+DOWNLOAD_CONCURRENCY=3
+
 # Jellyfin Configuration (for automatic library scanning)
 JELLYFIN_SERVER_URL=http://localhost:8096
 ```
