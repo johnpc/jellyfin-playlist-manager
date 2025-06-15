@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jellyfinClient } from "@/lib/api/jellyfin";
 import { downloadSong, verifyYtDlp } from "@/lib/api/downloader";
-import type { AISuggestion } from "@/types/jellyfin";
+import { generatePlaylistSuggestions } from "@/lib/api/bedrock";
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,23 +58,14 @@ export async function POST(request: NextRequest) {
 
     // Generate AI suggestions for radio playlist
     console.log("🤖 Generating AI suggestions for radio playlist...");
-    const aiResponse = await fetch(`${request.nextUrl.origin}/api/suggestions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        playlistItems: [{ name: songPrompt, albumArtist: "", album: "" }],
-        radioMode: true, // Special flag for radio playlist generation
-        count: 25, // Request 25 songs for radio playlist
-      }),
-    });
+    
+    // Call the function directly instead of making HTTP request to avoid SSL issues
+    const aiSuggestions = await generatePlaylistSuggestions(
+      [{ name: songPrompt, albumArtist: "", album: "" }],
+      true, // radioMode
+      25   // count
+    );
 
-    if (!aiResponse.ok) {
-      throw new Error("Failed to generate AI suggestions");
-    }
-
-    const { suggestions: aiSuggestions }: { suggestions: AISuggestion[] } = await aiResponse.json();
     console.log(`🎵 Generated ${aiSuggestions.length} AI suggestions`);
 
     // Create the radio playlist
