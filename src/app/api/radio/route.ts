@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jellyfinClient } from "@/lib/api/jellyfin";
+import { adminAuthClient } from "@/lib/api/admin-auth";
 import { downloadSong, verifyYtDlp } from "@/lib/api/downloader";
 import { generatePlaylistSuggestions } from "@/lib/api/bedrock";
 
@@ -94,11 +95,13 @@ export async function POST(request: NextRequest) {
       console.log("⚠️  yt-dlp not available - downloads will be skipped");
     }
 
-    // Phase 1: Parallel library search for all suggestions
+    // Phase 1: Parallel library search for all suggestions using admin auth
     console.log("\n🔍 Phase 1: Searching library for existing songs...");
     const searchPromises = aiSuggestions.map(async (suggestion, index) => {
       try {
-        const existingSong = await jellyfinClient.findSongInLibrary(suggestion.title, suggestion.artist);
+        const existingSong = await adminAuthClient.withAdminAuth(async () => {
+          return await jellyfinClient.findSongInLibrary(suggestion.title, suggestion.artist);
+        });
         return {
           index,
           suggestion,
@@ -232,25 +235,32 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Phase 4: Library scan and add downloaded songs
+      // Phase 4: Library scan and add downloaded songs using admin auth
       if (successfulDownloads.length > 0) {
         console.log("\n🔄 Phase 4: Scanning library for downloaded songs...");
 
-        // Trigger library scan once for all downloads
-        const musicLibraryId = await jellyfinClient.triggerMusicLibraryScan();
+        // Trigger library scan once for all downloads using admin auth
+        const musicLibraryId = await adminAuthClient.withAdminAuth(async () => {
+          return await jellyfinClient.triggerMusicLibraryScan();
+        });
+        
         if (musicLibraryId) {
-          const scanCompleted = await jellyfinClient.waitForLibraryScanCompletion(120000, 3000); // Longer timeout for multiple files
+          const scanCompleted = await adminAuthClient.withAdminAuth(async () => {
+            return await jellyfinClient.waitForLibraryScanCompletion(120000, 3000); // Longer timeout for multiple files
+          });
 
           if (scanCompleted) {
             console.log("✅ Library scan completed, searching for downloaded songs...");
 
-            // Search for all downloaded songs in parallel
+            // Search for all downloaded songs in parallel using admin auth
             const findPromises = successfulDownloads.map(async (download) => {
               try {
-                const foundSong = await jellyfinClient.findSongInLibrary(
-                  download.suggestion.title,
-                  download.suggestion.artist
-                );
+                const foundSong = await adminAuthClient.withAdminAuth(async () => {
+                  return await jellyfinClient.findSongInLibrary(
+                    download.suggestion.title,
+                    download.suggestion.artist
+                  );
+                });
                 return {
                   suggestion: download.suggestion,
                   foundSong,
