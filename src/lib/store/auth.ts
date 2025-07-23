@@ -5,6 +5,7 @@ import { jellyfinClient } from "@/lib/api/jellyfin";
 import { setCookie, deleteCookie } from "@/lib/utils/cookies";
 
 interface AuthStore extends AuthState {
+  isHydrated: boolean;
   login: (config: JellyfinConfig) => Promise<void>;
   logout: () => void;
   setAuth: (
@@ -12,6 +13,7 @@ interface AuthStore extends AuthState {
     accessToken: string,
     config: JellyfinConfig,
   ) => void;
+  setHydrated: () => void;
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -21,6 +23,7 @@ export const useAuthStore = create<AuthStore>()(
       config: null,
       user: null,
       accessToken: null,
+      isHydrated: false,
 
       login: async (config: JellyfinConfig) => {
         try {
@@ -66,6 +69,10 @@ export const useAuthStore = create<AuthStore>()(
           accessToken,
         });
       },
+
+      setHydrated: () => {
+        set({ isHydrated: true });
+      },
     }),
     {
       name: "jellyfin-auth",
@@ -75,6 +82,15 @@ export const useAuthStore = create<AuthStore>()(
         user: state.user,
         accessToken: state.accessToken,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Mark as hydrated when rehydration is complete
+        state?.setHydrated();
+        console.log("Auth store hydrated:", {
+          isAuthenticated: state?.isAuthenticated,
+          hasUser: !!state?.user,
+          hasConfig: !!state?.config,
+        });
+      },
     },
   ),
 );

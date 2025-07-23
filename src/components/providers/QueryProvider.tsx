@@ -15,6 +15,14 @@ export default function QueryProvider({
           queries: {
             staleTime: 60 * 1000, // 1 minute
             refetchOnWindowFocus: false,
+            retry: 3, // Retry failed requests 3 times
+            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+            // Increase timeout for large playlist operations
+            networkMode: 'online',
+          },
+          mutations: {
+            retry: 2, // Retry failed mutations 2 times
+            retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
           },
         },
       }),

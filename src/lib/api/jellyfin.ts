@@ -121,17 +121,29 @@ class JellyfinClient {
         fields: ["ItemCounts", "PrimaryImageAspectRatio"],
       });
 
-      return (
-        response.data.Items?.map((item) => ({
-          id: item.Id!,
-          name: item.Name!,
-          itemCount: item.ChildCount || 0,
-          duration: item.RunTimeTicks
-            ? Math.floor(item.RunTimeTicks / 10000000)
-            : undefined,
-          imageTags: item.ImageTags || undefined,
-        })) || []
-      );
+      const playlists = response.data.Items?.map((item) => ({
+        id: item.Id!,
+        name: item.Name!,
+        itemCount: item.ChildCount || 0,
+        duration: item.RunTimeTicks
+          ? Math.floor(item.RunTimeTicks / 10000000)
+          : undefined,
+        imageTags: item.ImageTags || undefined,
+      })) || [];
+
+      // Deduplicate playlists by ID to prevent duplicates
+      const seenIds = new Set<string>();
+      const uniquePlaylists = playlists.filter((playlist) => {
+        if (seenIds.has(playlist.id)) {
+          console.warn(`Duplicate playlist found and removed: ${playlist.name} (${playlist.id})`);
+          return false;
+        }
+        seenIds.add(playlist.id);
+        return true;
+      });
+
+      console.log(`📋 Fetched ${playlists.length} playlists, ${uniquePlaylists.length} unique`);
+      return uniquePlaylists;
     });
   }
 
@@ -144,32 +156,110 @@ class JellyfinClient {
     const { authClient } = await import("./auth-client");
 
     return authClient.withTokenRefresh(async () => {
+      console.log(`🎵 Fetching playlist items for playlist: ${playlistId}`);
+      
       const itemsApi = getItemsApi(this.api!);
+      
+      try {
+        // First, try the paginated approach for large playlists
+        return await this.getPlaylistItemsPaginated(playlistId, itemsApi);
+      } catch (paginationError) {
+        console.warn(`⚠️ Pagination approach failed, trying simple fetch:`, paginationError);
+        
+        // Fallback to simple approach with higher limit
+        try {
+          const response = await itemsApi.getItems({
+            userId: this.userId!,
+            parentId: playlistId,
+            fields: ["ParentId", "MediaSources", "Path"],
+            limit: 1000, // Higher limit for fallback
+            sortBy: ["SortName"],
+            sortOrder: ["Ascending"],
+          });
+
+          const items = response.data.Items?.map(
+            (item) =>
+              ({
+                id: item.Id!,
+                name: item.Name!,
+                type: "Audio" as const,
+                albumArtist: item.AlbumArtist,
+                album: item.Album,
+                duration: item.RunTimeTicks
+                  ? Math.floor(item.RunTimeTicks / 10000000)
+                  : undefined,
+                indexNumber: item.IndexNumber,
+                parentIndexNumber: item.ParentIndexNumber,
+                imageTags: item.ImageTags,
+              }) as PlaylistItem,
+          ) || [];
+
+          console.log(`✅ Fallback approach loaded ${items.length} items`);
+          return items;
+        } catch (fallbackError) {
+          console.error(`❌ Both pagination and fallback approaches failed:`, fallbackError);
+          throw fallbackError;
+        }
+      }
+    });
+  }
+
+  private async getPlaylistItemsPaginated(playlistId: string, itemsApi: ReturnType<typeof getItemsApi>): Promise<PlaylistItem[]> {
+    // For large playlists, we need to handle pagination
+    // Jellyfin's default limit is usually 100, so we'll fetch in batches
+    const limit = 200; // Fetch 200 items at a time
+    let startIndex = 0;
+    let allItems: PlaylistItem[] = [];
+    let hasMoreItems = true;
+
+    while (hasMoreItems) {
+      console.log(`📄 Fetching items ${startIndex} to ${startIndex + limit - 1}`);
+      
       const response = await itemsApi.getItems({
         userId: this.userId!,
         parentId: playlistId,
-        fields: ["ParentId"],
+        fields: ["ParentId", "MediaSources", "Path"],
+        startIndex,
+        limit,
+        sortBy: ["SortName"], // Ensure consistent ordering
+        sortOrder: ["Ascending"],
       });
 
-      return (
-        response.data.Items?.map(
-          (item) =>
-            ({
-              id: item.Id!,
-              name: item.Name!,
-              type: "Audio" as const,
-              albumArtist: item.AlbumArtist,
-              album: item.Album,
-              duration: item.RunTimeTicks
-                ? Math.floor(item.RunTimeTicks / 10000000)
-                : undefined,
-              indexNumber: item.IndexNumber,
-              parentIndexNumber: item.ParentIndexNumber,
-              imageTags: item.ImageTags,
-            }) as PlaylistItem,
-        ) || []
-      );
-    });
+      const items = response.data.Items?.map(
+        (item) =>
+          ({
+            id: item.Id!,
+            name: item.Name!,
+            type: "Audio" as const,
+            albumArtist: item.AlbumArtist,
+            album: item.Album,
+            duration: item.RunTimeTicks
+              ? Math.floor(item.RunTimeTicks / 10000000)
+              : undefined,
+            indexNumber: item.IndexNumber,
+            parentIndexNumber: item.ParentIndexNumber,
+            imageTags: item.ImageTags,
+          }) as PlaylistItem,
+      ) || [];
+
+      console.log(`✅ Fetched ${items.length} items in this batch`);
+      allItems = allItems.concat(items);
+
+      // Check if we have more items to fetch
+      const totalRecordCount = response.data.TotalRecordCount || 0;
+      hasMoreItems = startIndex + limit < totalRecordCount;
+      startIndex += limit;
+
+      console.log(`📊 Progress: ${allItems.length}/${totalRecordCount} items loaded`);
+
+      // Add a small delay between requests to avoid overwhelming the server
+      if (hasMoreItems) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    console.log(`🎵 Successfully loaded ${allItems.length} total playlist items via pagination`);
+    return allItems;
   }
 
   async createPlaylist(name: string): Promise<string> {

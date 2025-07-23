@@ -29,6 +29,9 @@ export default function PlaylistsView() {
   } = useQuery<Playlist[]>({
     queryKey: ["playlists"],
     queryFn: () => jellyfinClient.getPlaylists(),
+    staleTime: 30000, // Consider data fresh for 30 seconds
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
+    refetchOnMount: true, // Always refetch when component mounts
   });
 
   // Sort playlists alphabetically by name
